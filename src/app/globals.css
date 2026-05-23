@@ -2,12 +2,110 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================
+   Odyhook — Design Tokens
+   ============================================================ */
+
 :root {
+  /* ---------- Brand ---------- */
+  --brand-navy:        #0B1E47;
+  --brand-navy-deep:   #061229;
+  --brand-navy-tint:   color-mix(in oklch, #0B1E47 8%, transparent);
+
+  --brand-blue:        #1857C6;
+  --brand-blue-hover:  #0E3F9C;
+  --brand-blue-tint:   color-mix(in oklch, #1857C6 10%, transparent);
+
+  /* ---------- Neutral (Tailwind zinc) ---------- */
+  --zinc-50:  #fafafa;
+  --zinc-100: #f4f4f5;
+  --zinc-200: #e4e4e7;
+  --zinc-300: #d4d4d8;
+  --zinc-400: #a1a1aa;
+  --zinc-500: #71717a;
+  --zinc-600: #52525b;
+  --zinc-700: #3f3f46;
+  --zinc-800: #27272a;
+  --zinc-900: #18181b;
+  --zinc-950: #09090b;
+
+  /* ---------- Status palette ---------- */
+  --status-delivered:    #10b981;
+  --status-pending:      #f59e0b;
+  --status-in-flight:    #1857C6;
+  --status-failed:       #f97316;
+  --status-exhausted:    #dc2626;
+  --status-none:         #a1a1aa;
+
+  --status-delivered-tint: color-mix(in oklch, var(--status-delivered) 10%, transparent);
+  --status-pending-tint:   color-mix(in oklch, var(--status-pending)   10%, transparent);
+  --status-in-flight-tint: color-mix(in oklch, var(--status-in-flight) 10%, transparent);
+  --status-failed-tint:    color-mix(in oklch, var(--status-failed)    10%, transparent);
+  --status-exhausted-tint: color-mix(in oklch, var(--status-exhausted) 10%, transparent);
+
+  --status-delivered-fg: #047857;
+  --status-pending-fg:   #b45309;
+  --status-in-flight-fg: #0E3F9C;
+  --status-failed-fg:    #c2410c;
+  --status-exhausted-fg: #b91c1c;
+
+  /* ---------- Semantic surface tokens (light) ---------- */
+  --bg:          var(--zinc-50);
+  --bg-elevated: #ffffff;
+  --bg-muted:    var(--zinc-100);
+
+  --fg-1: var(--zinc-900);
+  --fg-2: var(--zinc-600);
+  --fg-3: var(--zinc-500);
+  --fg-4: var(--zinc-400);
+
+  --border-1: var(--zinc-200);
+  --border-2: var(--zinc-100);
+
+  --link-fg:       var(--brand-blue);
+  --link-fg-hover: var(--brand-blue-hover);
+
+  /* ---------- Font ---------- */
+  --font-sans:  var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:  var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-brand: var(--font-nunito), "Nunito", ui-rounded, system-ui, sans-serif;
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 150ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- Radii ---------- */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-full: 9999px;
+
+  /* Legacy compat */
   --background: #fafafa;
   --foreground: #18181b;
 }
 
 .dark {
+  --bg:          var(--zinc-950);
+  --bg-elevated: var(--zinc-950);
+  --bg-muted:    var(--zinc-900);
+
+  --fg-1: var(--zinc-100);
+  --fg-2: var(--zinc-400);
+  --fg-3: var(--zinc-500);
+  --fg-4: var(--zinc-500);
+
+  --border-1: var(--zinc-800);
+  --border-2: var(--zinc-900);
+
+  --link-fg:       #5B8DEF;
+  --link-fg-hover: #93B5F6;
+
+  --status-delivered-fg: #34d399;
+  --status-pending-fg:   #fbbf24;
+  --status-in-flight-fg: #5B8DEF;
+  --status-failed-fg:    #fb923c;
+  --status-exhausted-fg: #f87171;
+
   --background: #09090b;
   --foreground: #fafafa;
 }
@@ -20,5 +118,105 @@
 }
 
 body {
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Focus ring
+   ============================================================ */
+:where(button, input, select, textarea, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   Status dots
+   ============================================================ */
+.dot {
+  display: inline-block;
+  position: relative;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.dot--delivered { background: var(--status-delivered); }
+.dot--pending   { background: var(--status-pending); }
+.dot--in-flight { background: var(--status-in-flight); }
+.dot--failed    { background: var(--status-failed); }
+.dot--exhausted { background: var(--status-exhausted); }
+.dot--none      { background: var(--status-none); }
+
+/* Signature animation: in_flight dots emit a soft ring pulse. */
+.dot--in-flight::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 9999px;
+  background: var(--status-in-flight);
+  opacity: 0.55;
+  animation: ody-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+@keyframes ody-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.8); opacity: 0; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+/* ============================================================
+   Status pills
+   ============================================================ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.pill--delivered { background: var(--status-delivered-tint); color: var(--status-delivered-fg); }
+.pill--pending   { background: var(--status-pending-tint);   color: var(--status-pending-fg); }
+.pill--in-flight { background: var(--status-in-flight-tint); color: var(--status-in-flight-fg); }
+.pill--failed    { background: var(--status-failed-tint);    color: var(--status-failed-fg); }
+.pill--exhausted { background: var(--status-exhausted-tint); color: var(--status-exhausted-fg); }
+
+/* ============================================================
+   Route toggle flash animation (disabled → enabled only)
+   ============================================================ */
+.rt-toggle-flashing {
+  animation: rt-track-flash 460ms ease-out 1;
+}
+.rt-toggle-flashing::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 9999px;
+  border: 2px solid var(--brand-blue);
+  animation: rt-ring-pulse 520ms ease-out 1 forwards;
+  pointer-events: none;
+}
+@keyframes rt-track-flash {
+  0%   { background-color: var(--brand-blue);       border-color: var(--brand-blue); }
+  40%  { background-color: var(--brand-blue);       border-color: var(--brand-blue); }
+  100% { background-color: var(--status-delivered); border-color: var(--status-delivered); }
+}
+@keyframes rt-ring-pulse {
+  0%   { transform: scale(1);    opacity: 0.55; border-color: var(--brand-blue); }
+  60%  {                          opacity: 0.20; border-color: var(--status-delivered); }
+  100% { transform: scale(1.55); opacity: 0;    border-color: var(--status-delivered); }
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .dot--in-flight::after { animation: none; }
+  .rt-toggle-flashing,
+  .rt-toggle-flashing::after { animation: none; }
 }

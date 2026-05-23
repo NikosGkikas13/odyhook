@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { toggleRoute } from "@/lib/actions/routes";
+import { RouteToggle } from "@/components/route-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -78,31 +78,12 @@ export default async function RoutesPage() {
                     const enabled = !!r?.enabled;
                     return (
                       <td key={d.id} className="px-4 py-3 text-center">
-                        <form action={toggleRoute}>
-                          <input type="hidden" name="sourceId" value={s.id} />
-                          <input
-                            type="hidden"
-                            name="destinationId"
-                            value={d.id}
-                          />
-                          <button
-                            type="submit"
-                            aria-label={`Toggle route ${s.name} -> ${d.name}`}
-                            className={`inline-flex h-6 w-10 items-center rounded-full border text-xs font-medium transition-colors ${
-                              enabled
-                                ? "border-emerald-500 bg-emerald-500 text-white"
-                                : "border-zinc-300 bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                                enabled
-                                  ? "translate-x-5"
-                                  : "translate-x-0.5 dark:bg-zinc-400"
-                              }`}
-                            />
-                          </button>
-                        </form>
+                        <RouteToggle
+                          sourceId={s.id}
+                          destinationId={d.id}
+                          enabled={enabled}
+                          label={`Toggle route ${s.name} -> ${d.name}`}
+                        />
                       </td>
                     );
                   })}

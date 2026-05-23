@@ -68,7 +68,8 @@ export default async function SourcesPage() {
           <div className="sm:col-span-2">
             <button
               type="submit"
-              className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              style={{ background: "var(--brand-navy)" }}
+            className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white hover:opacity-90 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
             >
               Create source
             </button>

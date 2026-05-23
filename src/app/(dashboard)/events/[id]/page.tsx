@@ -29,11 +29,11 @@ function formatDate(date: Date): string {
 }
 
 const statusBadge: Record<string, string> = {
-  pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  in_flight: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  delivered: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-  failed: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
-  exhausted: "bg-red-500/10 text-red-700 dark:text-red-400",
+  pending:   "pill pill--pending",
+  in_flight: "pill pill--in-flight",
+  delivered: "pill pill--delivered",
+  failed:    "pill pill--failed",
+  exhausted: "pill pill--exhausted",
 };
 
 export default async function EventDetailPage({
@@ -134,9 +134,7 @@ export default async function EventDetailPage({
               <li key={d.id} className="flex flex-col gap-2 p-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusBadge[d.status]}`}
-                    >
+                    <span className={statusBadge[d.status] ?? "pill"}>
                       {d.status}
                     </span>
                     <span className="text-sm font-medium">

@@ -124,25 +124,22 @@ export default async function EventsPage({
 
   function aggregateStatus(
     deliveries: { status: DeliveryStatus }[],
-  ): "delivered" | "pending" | "failed" | "exhausted" | "none" {
+  ): "delivered" | "in_flight" | "pending" | "failed" | "exhausted" | "none" {
     if (deliveries.length === 0) return "none";
     if (deliveries.some((d) => d.status === "exhausted")) return "exhausted";
     if (deliveries.some((d) => d.status === "failed")) return "failed";
-    if (
-      deliveries.some(
-        (d) => d.status === "pending" || d.status === "in_flight",
-      )
-    )
-      return "pending";
+    if (deliveries.some((d) => d.status === "in_flight")) return "in_flight";
+    if (deliveries.some((d) => d.status === "pending")) return "pending";
     return "delivered";
   }
 
-  const statusColor: Record<string, string> = {
-    delivered: "bg-emerald-500",
-    pending: "bg-amber-500",
-    failed: "bg-orange-500",
-    exhausted: "bg-red-600",
-    none: "bg-zinc-400",
+  const dotClass: Record<string, string> = {
+    delivered: "dot dot--delivered",
+    in_flight: "dot dot--in-flight",
+    pending:   "dot dot--pending",
+    failed:    "dot dot--failed",
+    exhausted: "dot dot--exhausted",
+    none:      "dot dot--none",
   };
 
   // Build pagination link hrefs preserving filter state.
@@ -205,7 +202,7 @@ export default async function EventsPage({
                     <td className="px-4 py-3">
                       <span
                         aria-label={s}
-                        className={`inline-block h-2 w-2 rounded-full ${statusColor[s]}`}
+                        className={dotClass[s]}
                       />
                     </td>
                     <td className="px-4 py-3 font-medium">{e.source.name}</td>
