@@ -24,6 +24,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ? {
             host: process.env.EMAIL_SERVER_HOST,
             port: Number(process.env.EMAIL_SERVER_PORT ?? 1025),
+            // Port 465 requires implicit TLS; 587/1025 use STARTTLS.
+            secure: Number(process.env.EMAIL_SERVER_PORT) === 465,
             auth: {
               user: process.env.EMAIL_SERVER_USER,
               pass: process.env.EMAIL_SERVER_PASSWORD,

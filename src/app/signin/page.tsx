@@ -11,17 +11,8 @@ export default function SignInPage({
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-5 flex items-center gap-2">
-          <span className="flex items-center rounded bg-white p-0.5 shadow-sm">
-            <Image src="/odyhook-logo.png" alt="Odyhook" width={28} height={28} />
-          </span>
-          <span
-            className="text-[20px] font-[800] leading-none tracking-[-0.02em]"
-            style={{ fontFamily: "var(--font-brand)" }}
-          >
-            <span style={{ color: "var(--brand-navy)" }}>ody</span>
-            <span style={{ color: "var(--brand-blue)" }}>hook</span>
-          </span>
+        <div className="mb-5">
+          <Image src="/odyhook-logo.png" alt="Odyhook" width={100} height={100} className="dark:invert" />
         </div>
         <h1 className="text-xl font-semibold tracking-tight">
           Sign in
@@ -98,8 +89,7 @@ async function SignInForm({
         />
         <button
           type="submit"
-          style={{ background: "var(--brand-navy)" }}
-          className="inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-medium text-white hover:opacity-90 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-100 px-4 text-sm font-medium text-zinc-900 hover:bg-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
         >
           Send magic link
         </button>

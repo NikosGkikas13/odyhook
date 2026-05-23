@@ -16,23 +16,14 @@ export default async function DashboardLayout({
     <div className="flex min-h-screen flex-1 flex-col">
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-6">
-          <Link href="/sources" className="flex items-center gap-2">
-            <span className="flex items-center rounded bg-white p-0.5 dark:bg-white">
-              <Image
-                src="/odyhook-logo.png"
-                alt="Odyhook"
-                width={26}
-                height={26}
-                className="block"
-              />
-            </span>
-            <span
-              className="text-[18px] font-[800] leading-none tracking-[-0.02em]"
-              style={{ fontFamily: "var(--font-brand)" }}
-            >
-              <span style={{ color: "var(--brand-navy)" }} className="dark:text-zinc-100">ody</span>
-              <span style={{ color: "var(--brand-blue)" }}>hook</span>
-            </span>
+          <Link href="/sources">
+            <Image
+              src="/odyhook-logo.png"
+              alt="Odyhook"
+              width={100}
+              height={100}
+              className="block dark:invert"
+            />
           </Link>
           <NavLinks />
           <div className="ml-auto flex items-center gap-3 text-sm text-zinc-500">
