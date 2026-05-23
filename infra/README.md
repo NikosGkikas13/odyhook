@@ -1,84 +1,184 @@
-# Odyhook Infrastructure
+# Odyhook — Infrastructure & Operations
 
-The "what's deployed where" reference. Keep this current — out-of-date infra docs are worse than none.
+The operational ground truth for the project. Updated whenever infra changes. For *app* architecture and tech-choice rationale see [ARCHITECTURE.md](../ARCHITECTURE.md); for the deeper "why we deployed this way" narrative see [hetzner.md](../hetzner.md); for recovery procedures see [recovery.md](recovery.md).
 
 ---
 
-## Production snapshot
+## At a glance
 
-| Item | Value |
+**Odyhook** is a self-hosted webhook router: receives webhooks from external providers (Stripe, GitHub, etc.), verifies signatures, persists them, optionally transforms/filters, and reliably forwards to downstream destinations with retries.
+
+| | |
 |---|---|
-| Public URL | `https://odyhook.dev` (apex), `www` → apex 301 |
-| Server | Hetzner Cloud CX23, Helsinki, `157.180.91.106` |
-| Server cost | €4.95/month |
-| Repo on server | `/opt/hooksmith` (single canonical checkout) |
-| Compose project name | `hooksmith` (derived from directory basename — kept for volume continuity even after the brand rename) |
-| Container image | `odyhook-app:latest` (built locally on the server from the repo's Dockerfile) |
+| Production URL | `https://odyhook.dev` (apex), `www` → apex 301 redirect |
+| Server | Hetzner Cloud CX23, Helsinki — `157.180.91.106` (2 vCPU, 4 GB RAM, 40 GB SSD) |
+| Hosting cost | €4.95/month |
+| Source repo | `github.com/NikosGkikas13/hooksmith` (public) |
+| Compose project name | `hooksmith` (derived from the `/opt/hooksmith` directory basename; kept after the Odyhook rebrand to avoid a `pg_dump` migration of named volumes) |
+| Container image tag | `odyhook-app:latest` (built locally on the server from the repo's Dockerfile) |
+| Repo on server | `/opt/hooksmith` (single canonical checkout — `~/hooksmith` was removed) |
 
-## Stack architecture
+---
 
-Five containers managed by `docker-compose.prod.yml`:
+## What this project is (one-paragraph version)
+
+External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest).
+
+Five running containers in production. Three external services (Resend, Cloudflare R2, Sentry). One cron file. Everything deployed via GitHub Actions on push to `main`.
+
+---
+
+## Tech stack (production)
+
+| Layer | Choice | Pinned version |
+|---|---|---|
+| Web framework | Next.js (App Router) | `16.2.3` |
+| Language | TypeScript (strict) | `5.x` |
+| ORM | Prisma 7 with `@prisma/adapter-pg` | `7.7.0` |
+| DB | PostgreSQL | `16-alpine` (Docker) |
+| Cache + Queue | Redis | `7-alpine` (Docker) |
+| Queue library | BullMQ | `5.x` |
+| Auth | NextAuth v5 (magic-link + GitHub OAuth) | `5.0.0-beta.30` |
+| HMAC | Node `crypto` (built-in) | n/a |
+| Encryption at rest | AES-256-GCM (Node `crypto`) | n/a |
+| Transformation sandbox | QuickJS via `quickjs-emscripten` (WASM) | `0.32.x` |
+| AI | Anthropic Claude (BYOK) | `@anthropic-ai/sdk` `0.87.x` |
+| TLS / reverse proxy | Caddy 2 | `2-alpine` (Docker) |
+| Container runtime | Docker | host-installed via `get.docker.com` |
+| Orchestration | Docker Compose v2 | `docker compose` (no hyphen) |
+| Observability | Sentry (web + worker) | `@sentry/nextjs` `10.53.x` |
+| Backups | `pg_dump` → `rclone` → Cloudflare R2 | rclone v1.74.x |
+| Tests | Vitest 4 | n/a in prod |
+| CSS | Tailwind 4 | n/a in prod |
+
+ARCHITECTURE.md explains *why* each one of these was picked.
+
+---
+
+## Repo structure (operationally significant files)
 
 ```
-Internet ──TLS──▶ caddy ──▶ web (Next.js) ──▶ postgres
-                              │                  │
-                              ▼                  │
-                            redis ◀── worker ────┘
-                              (BullMQ queue)
+.
+├── .github/workflows/deploy.yml   # GitHub Actions auto-deploy on push to main
+├── docker-compose.yml             # LOCAL DEV: postgres + redis + MailHog
+├── docker-compose.prod.yml        # PROD: postgres + redis + web + worker + caddy
+├── Dockerfile                     # Multi-stage build for web + worker (same image)
+├── Caddyfile                      # Production HTTPS config for odyhook.dev
+├── next.config.ts                 # Wrapped with withSentryConfig()
+├── prisma.config.ts               # Prisma 7 config — reads DATABASE_URL
+├── prisma/schema.prisma           # 12-model schema; output → src/generated/prisma
+├── src/instrumentation.ts         # Sentry registration (server + edge runtimes)
+├── src/sentry.server.config.ts    # Sentry init for Node runtime
+├── src/sentry.edge.config.ts      # Sentry init for Edge runtime
+├── src/workers/delivery.ts        # BullMQ delivery worker process (init Sentry inline)
+├── src/auth.ts                    # Full NextAuth config with PrismaAdapter
+├── src/auth.config.ts             # Edge-safe NextAuth config (used by proxy.ts)
+├── src/proxy.ts                   # Next 16 middleware — JWT-only route gate
+├── src/scripts/digest.ts          # Weekly digest cron job
+├── src/scripts/drift.ts           # Daily drift check cron job
+├── .env                           # GITIGNORED — only on server. See "Environment vars" below
+├── ARCHITECTURE.md                # Why each tech choice
+├── DEPLOY.md                      # Older deployment doc (covers Fly.io + VPS paths)
+├── hetzner.md                     # Conceptual companion to the VPS deploy
+└── infra/                         # This folder
+    ├── README.md                  # ← you are here
+    └── recovery.md                # Disaster-recovery procedures
 ```
 
-| Service | Image | Role | Persistent |
-|---|---|---|---|
-| `caddy` | `caddy:2-alpine` | TLS termination, reverse proxy. Obtains certs from Let's Encrypt. | `caddy_data`, `caddy_config` volumes |
-| `web` | `odyhook-app:latest` | Next.js app — dashboard + API + ingest endpoint | no |
-| `worker` | `odyhook-app:latest` | BullMQ delivery worker — same image, `npm run worker:prod` | no |
-| `postgres` | `postgres:16-alpine` | Application DB | `hooksmith_odyhook_pg` volume on disk (named `odyhook_pg` in compose) |
-| `redis` | `redis:7-alpine` | BullMQ queue + rate-limit token buckets | `hooksmith_odyhook_redis` volume |
+---
 
-**Postgres DB name:** still `hooksmith` (kept on rebrand to avoid a `pg_dump`+restore migration). Database/role naming is internal — no user-visible impact.
+## Production architecture
+
+```
+                                  ┌──────────────┐
+   Internet ──TLS:443──────────▶  │    Caddy     │
+                                  │ (Let's       │
+                                  │  Encrypt,    │
+                                  │  auto-renew) │
+                                  └──────┬───────┘
+                                         │ HTTP :3000 (Docker network)
+                                         ▼
+                                  ┌──────────────┐         ┌──────────────┐
+                                  │ web          │────────▶│  Postgres    │
+                                  │ (Next.js 16) │         │  (named vol) │
+                                  │              │         └──────────────┘
+                                  │ - ingest     │
+                                  │ - dashboard  │         ┌──────────────┐
+                                  │ - auth       │────────▶│   Redis      │
+                                  │ - actions    │         │  (named vol) │
+                                  └──────────────┘         └──────┬───────┘
+                                                                  │ BullMQ
+                                  ┌──────────────┐                │
+                                  │ worker       │◀───────────────┘
+                                  │ (tsx)        │
+                                  │ - filter     │────────▶ destination URLs (fetch)
+                                  │ - transform  │            (HTTPS with 10s timeout)
+                                  │ - retry      │
+                                  └──────────────┘
+```
+
+Five containers, one Docker bridge network (`hooksmith_default`), four named volumes (`hooksmith_odyhook_pg`, `hooksmith_odyhook_redis`, `hooksmith_caddy_data`, `hooksmith_caddy_config`).
+
+---
 
 ## External services
 
-| Service | Role | Account/identifier |
-|---|---|---|
-| **Porkbun** | Domain registrar + DNS for `odyhook.dev` | Account: ngkdev93@gmail.com |
-| **Resend** | SMTP for magic-link emails | Domain `odyhook.dev` verified (DKIM/SPF). Sends from `no-reply@odyhook.dev`. |
-| **Cloudflare R2** | Off-site DB backup storage | Bucket `odyhook-backups`, region EEUR, 14-day lifecycle, account ID `728e0c68f696f31ad2029513f3e9962b` |
-| **Sentry** | Error tracking (web + worker) | Org `odyhook`, region DE (EU), project key in `SENTRY_DSN` |
-| **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/hooksmith` (public) |
-| **GitHub OAuth App** | "Continue with GitHub" sign-in | Callback URL: `https://odyhook.dev/api/auth/callback/github` |
-
-## DNS records (at Porkbun)
-
-| Type | Host | Value | For |
+| Service | Role | Account / identifier | Where to manage |
 |---|---|---|---|
-| A | (apex) | `157.180.91.106` | `odyhook.dev` |
-| A | `www` | `157.180.91.106` | `www` → apex |
-| MX | `send` | `feedback-smtp.eu-west-1.amazonses.com` (priority 10) | Resend bounce handling |
+| **Porkbun** | Domain registrar + DNS for `odyhook.dev` | Account: `ngkdev93@gmail.com` | [porkbun.com](https://porkbun.com) |
+| **Resend** | SMTP for magic-link emails. Domain `odyhook.dev` verified (DKIM/SPF/DMARC). Sends from `no-reply@odyhook.dev`. | API key in server's `EMAIL_SERVER_PASSWORD`. | [resend.com/domains](https://resend.com/domains) |
+| **Cloudflare R2** | Off-site DB backup storage | Account ID `728e0c68f696f31ad2029513f3e9962b`. Bucket `odyhook-backups`, region EEUR, 14-day object lifecycle. | [dash.cloudflare.com](https://dash.cloudflare.com) → R2 |
+| **Sentry** | Error tracking for web + worker | Org `odyhook`, region DE, project key in `SENTRY_DSN` | [sentry.io](https://sentry.io) |
+| **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/hooksmith` (public) | [github.com](https://github.com) |
+| **GitHub OAuth App** | "Continue with GitHub" sign-in path | Callback: `https://odyhook.dev/api/auth/callback/github`. Client ID + secret in server's `.env`. | [github.com/settings/developers](https://github.com/settings/developers) |
+| **Hetzner Cloud** | VPS host | Server `hooksmith` in Helsinki | [console.hetzner.cloud](https://console.hetzner.cloud) |
+| **Anthropic API** | User-provided AI keys (BYOK model) | No central key — each user supplies their own in Settings → API Keys. Encrypted at rest with `ENCRYPTION_KEY`. | n/a — per-user |
+
+---
+
+## DNS records (at Porkbun, for `odyhook.dev`)
+
+| Type | Host | Value | Purpose |
+|---|---|---|---|
+| A | (apex / blank) | `157.180.91.106` | `odyhook.dev` → server |
+| A | `www` | `157.180.91.106` | `www` → server (Caddy redirects to apex) |
+| MX | `send` | `feedback-smtp.eu-west-1.amazonses.com` priority `10` | Resend bounce/reply handling |
 | TXT | `send` | `v=spf1 include:amazonses.com ~all` | SPF |
-| TXT | `resend._domainkey` | (long DKIM `p=...` blob) | DKIM signing |
+| TXT | `resend._domainkey` | (long DKIM `p=...` blob; see Resend dashboard) | DKIM signing |
 | TXT | `_dmarc` | `v=DMARC1; p=none;` | DMARC reporting |
+
+If any of these are removed at Porkbun, Resend's verification status flips back to "Pending" and email sending fails until restored.
+
+---
 
 ## Deployment
 
-### Automatic (the normal path)
+### Auto-deploy (the normal path)
 
-Push to `main` → GitHub Actions workflow `.github/workflows/deploy.yml`:
+Push to `main` triggers `.github/workflows/deploy.yml`:
 
-1. SSHes into `157.180.91.106` with a key restricted to running ONE command
-2. The forced command on the server is `/usr/local/bin/odyhook-deploy.sh`
-3. That script does `git pull --ff-only` + `docker compose up -d --build`
-4. Total time: ~90s for a typical code change, ~5 min for a Dockerfile change
+1. GitHub Actions runner stores `DEPLOY_SSH_KEY` (secret) to `~/.ssh/id_ed25519`
+2. Pins server's known_hosts ed25519 fingerprint inline (anti-MITM)
+3. SSHes to `root@157.180.91.106` with that key
+4. The key's `command=` restriction in `authorized_keys` forces execution of `/usr/local/bin/odyhook-deploy.sh`
+5. That script runs `git pull --ff-only origin main && docker compose -f docker-compose.prod.yml up -d --build`
 
-The deploy key is configured in `/root/.ssh/authorized_keys` with:
+**Typical timings:**
+- UI-only change: ~90s (most layers cached, only `npm run build` re-runs)
+- Dependency change: ~3 min (`npm ci` reruns)
+- Dockerfile early-stage change: ~5 min (full rebuild)
+
+**Concurrency:** workflow uses `concurrency: deploy-production cancel-in-progress: false` — never runs two deploys simultaneously.
+
+### Deploy-key restrictions (in `/root/.ssh/authorized_keys`)
 
 ```
 command="/usr/local/bin/odyhook-deploy.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA... github-actions-deploy@odyhook
 ```
 
-Private key stored as GitHub Actions secret `DEPLOY_SSH_KEY`. Server's host key is pinned in the workflow YAML for MITM protection.
+Even if `DEPLOY_SSH_KEY` leaks (e.g., from Actions logs), an attacker can only force a redeploy of `main` — no shell, no port tunnel, no other commands.
 
-### Manual (when CI is down or for emergency)
+### Manual deploy (when CI is down)
 
 ```sh
 ssh root@157.180.91.106
@@ -87,162 +187,200 @@ git pull --ff-only origin main
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+### What is NOT in the deploy pipeline (deliberately, for now)
+
+- **No tests** before deploy. A broken push fails at `npm run build` on the server but isn't caught earlier.
+- **No staging environment.** `main` is production.
+- **No automatic rollback.** A failed deploy leaves old containers running (good default) but you must `git revert` to recover.
+- **No release tagging.** Each deploy is identified only by the git commit hash.
+
+---
+
 ## Scheduled jobs
 
-System cron at `/etc/cron.d/odyhook`. Output goes to `/var/log/odyhook-cron.log`.
+System cron at `/etc/cron.d/odyhook`. Output → `/var/log/odyhook-cron.log`.
 
-| Schedule | Job | Command |
-|---|---|---|
-| Daily 03:00 UTC | DB backup → R2 | `/usr/local/bin/odyhook-backup.sh` |
-| Daily 09:00 UTC | Destination drift check | `npm run job:drift` (inside web container) |
-| Weekly Monday 09:00 UTC | Activity digest emails | `npm run job:digest` (inside web container) |
+| When (UTC) | Job | Command | What it does |
+|---|---|---|---|
+| Daily 03:00 | DB backup | `/usr/local/bin/odyhook-backup.sh` | `pg_dump` → gzip → R2 |
+| Daily 09:00 | Drift check | `npm run job:drift` (in web container) | Detects destinations whose response shape changed; emails the owner |
+| Weekly Mon 09:00 | Activity digest | `npm run job:digest` (in web container) | Emails each user a summary of webhook activity |
 
-The cron daemon re-reads `/etc/cron.d/` every minute — no restart needed after editing.
+`cron` re-reads `/etc/cron.d/` every minute — no daemon restart needed after editing.
 
-## Backups
+---
+
+## Backups (Cloudflare R2)
 
 | Aspect | Details |
 |---|---|
-| What's backed up | Postgres only (via `pg_dump`). Not Redis (transient queue state). Not Caddy certs (auto-regen). |
-| Where | Cloudflare R2 bucket `odyhook-backups` |
-| Frequency | Nightly at 03:00 UTC via cron |
-| Format | `odyhook-YYYY-MM-DDTHH-MM-SSZ.sql.gz` (gzipped) |
-| Retention | 14 days (R2 lifecycle rule auto-deletes older) |
-| Script | `/usr/local/bin/odyhook-backup.sh` — streams `pg_dump | gzip | rclone rcat`, no intermediate file |
-| Tool | `rclone` configured at `/root/.config/rclone/rclone.conf` (mode 600), profile `[r2]` |
+| What | Postgres only (`pg_dump`). Not Redis (transient queue). Not Caddy certs (auto-regen). |
+| Where | R2 bucket `odyhook-backups` |
+| Frequency | Nightly 03:00 UTC |
+| Format | `odyhook-YYYY-MM-DDTHH-MM-SSZ.sql.gz` |
+| Retention | 14 days (R2 lifecycle auto-delete) |
+| Script | `/usr/local/bin/odyhook-backup.sh` — streams `pg_dump | gzip | rclone rcat` (no temp file) |
+| rclone config | `/root/.config/rclone/rclone.conf`, mode 600, profile `[r2]` with `no_check_bucket = true` (scoped tokens can't ListBuckets) |
+| Backup size | ~3 KB compressed initially, expected ~50 MB–700 MB at scale |
 
-### Restore procedure
+Restore procedure: see [recovery.md](recovery.md#postgres-restore-from-r2).
 
-```sh
-# 1. List available backups
-ssh root@157.180.91.106 'rclone ls r2:odyhook-backups | sort -r | head -10'
-
-# 2. Pull a specific one and pipe directly into postgres
-ssh root@157.180.91.106 'rclone cat r2:odyhook-backups/odyhook-<timestamp>.sql.gz \
-  | gunzip \
-  | docker compose -f /opt/hooksmith/docker-compose.prod.yml exec -T postgres psql -U hooksmith hooksmith'
-```
-
-**Caveat:** restoring INTO a running DB requires either an empty DB (drop+recreate first) or careful conflict handling. For a real restore drill, stop the web/worker first to prevent writes.
+---
 
 ## Environment variables
 
-All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by `docker-compose.prod.yml` via `env_file: .env` and `NEXT_PUBLIC_APP_URL` is also passed as a `build:` arg (it's inlined into the client bundle at build time).
+All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Docker Compose via `env_file: .env`. **`NEXT_PUBLIC_APP_URL` is also passed as a Compose `build` arg** because it's inlined into the client JS bundle at build time.
 
-| Variable | Purpose | Rotation impact |
-|---|---|---|
-| `NODE_ENV` | Standard Next.js prod flag | None — always `production` |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres container creds (`hooksmith` user/db) | Changing requires DB user rename + DATABASE_URL update |
-| `DATABASE_URL` | App → Postgres (`postgres://hooksmith:...@postgres:5432/hooksmith`) | Must match POSTGRES_* values |
-| `REDIS_URL` | App → Redis (`redis://redis:6379`) | None |
-| `AUTH_SECRET` | NextAuth JWT signing | Rotating logs out everyone |
-| `AUTH_URL` | OAuth/magic-link callback base (`https://odyhook.dev`) | Must match deployed URL |
-| `ENCRYPTION_KEY` | AES-256-GCM for encrypted columns (destination headers, signing secrets, Anthropic API keys) | **Rotating invalidates ALL encrypted DB columns** — plan a rewrap migration |
-| `EMAIL_SERVER_HOST` / `_PORT` / `_USER` / `_PASSWORD` | SMTP creds (Resend) | Get fresh API key from Resend dashboard |
-| `EMAIL_FROM` | Magic-link sender (`Odyhook <no-reply@odyhook.dev>`) | Domain must stay verified in Resend |
-| `NEXT_PUBLIC_APP_URL` | Public base URL inlined in client JS (`https://odyhook.dev`) | **Build-time** — requires `up -d --build`, not just restart |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | GitHub OAuth | Regenerate secret in GitHub dev settings if leaked |
-| `SENTRY_DSN` | Error reporting endpoint | Public-ish; can rotate if abuse occurs |
+| Variable | Purpose | Build- or run-time | Rotation impact |
+|---|---|---|---|
+| `NODE_ENV` | Standard prod flag | runtime | none |
+| `POSTGRES_USER` `_PASSWORD` `_DB` | Postgres container init creds | runtime | Rotating requires DB user rename or DB rebuild; update `DATABASE_URL` too |
+| `DATABASE_URL` | App → Postgres connection string | runtime | Must match POSTGRES_* values |
+| `REDIS_URL` | App → Redis (`redis://redis:6379`) | runtime | none |
+| `AUTH_SECRET` | NextAuth JWT signing | runtime | Rotating logs out everyone, not catastrophic |
+| `AUTH_URL` | OAuth/magic-link callback base (`https://odyhook.dev`) | runtime | Must match the public URL |
+| `ENCRYPTION_KEY` | AES-256-GCM key for at-rest column encryption (signing secrets, destination headers, user Anthropic keys) | runtime | ⚠️ **Catastrophic.** Rotating invalidates every encrypted DB column. Requires a rewrap migration. |
+| `EMAIL_SERVER_HOST` `_PORT` `_USER` `_PASSWORD` | Resend SMTP | runtime | Get new API key from Resend dashboard |
+| `EMAIL_FROM` | Sender (`Odyhook <no-reply@odyhook.dev>`) | runtime | Domain must stay verified in Resend |
+| `NEXT_PUBLIC_APP_URL` | Public base URL inlined in client JS | **build-time** | Wrong value → ingest URLs in dashboard point at the wrong host; requires `up -d --build` |
+| `AUTH_GITHUB_ID` `AUTH_GITHUB_SECRET` | GitHub OAuth app | runtime | Regenerate secret at github.com/settings/developers |
+| `SENTRY_DSN` | Error reporting endpoint | runtime | DSN is public-ish; rotate if abuse |
+| `RATE_LIMIT_PER_SEC` `RATE_LIMIT_BURST` | Default rate-limit when no per-source override (default 10/20) | runtime | numeric tuning |
+
+**There is no off-site backup of `.env` currently.** If the server is destroyed, you'd regenerate most values from external dashboards but `ENCRYPTION_KEY` loss is unrecoverable for encrypted columns. See [recovery.md](recovery.md#lost-env-file).
+
+---
 
 ## Observability
 
-| Source | Where to look |
+| Surface | Where to look |
 |---|---|
-| Application errors (web + worker) | Sentry dashboard, project `odyhook` |
-| Container logs (live) | `docker compose -f docker-compose.prod.yml logs -f <service>` on the server |
-| Cron job output | `/var/log/odyhook-cron.log` on the server |
-| Deploy history | `https://github.com/NikosGkikas13/hooksmith/actions` |
-| Caddy / TLS status | `docker compose -f docker-compose.prod.yml logs caddy` (cert renewals appear here) |
+| **Application exceptions** (web + worker) | [Sentry dashboard](https://sentry.io) → project `odyhook` → Issues |
+| **Container logs (live)** | SSH in → `docker compose -f docker-compose.prod.yml logs -f <service>` |
+| **Cron job output** | SSH in → `tail -f /var/log/odyhook-cron.log` |
+| **Deploy history** | [github.com/NikosGkikas13/hooksmith/actions](https://github.com/NikosGkikas13/hooksmith/actions) |
+| **Caddy / TLS status** | `docker compose logs caddy` (cert renewals appear here) |
+| **R2 backup inventory** | `rclone ls r2:odyhook-backups | sort -r | head` |
+
+**Known gap:** there's no alerting on cron exit codes. Sentry catches exceptions in running code but doesn't fire if the nightly backup script silently fails three nights in a row. Mitigation idea (not implemented): hit a [healthchecks.io](https://healthchecks.io) URL from the backup script on success — they ping you when no pings arrive on schedule.
+
+---
+
+## Local development
+
+```sh
+# Spin up Postgres, Redis, MailHog
+docker compose up -d
+
+# Apply migrations
+npm run db:migrate
+
+# Run Next.js + worker in two terminals
+npm run dev          # web at localhost:3000
+npm run worker       # worker (watches src/workers/delivery.ts)
+```
+
+Magic-link emails go to **MailHog at `http://localhost:8025`** — there's no SMTP in dev unless you set `EMAIL_SERVER_*` env vars. The signin page renders a hint linking to MailHog when `NODE_ENV !== "production"`.
+
+See the project's top-level [README.md](../README.md) for the full developer quickstart.
+
+---
 
 ## Common operations
 
 ```sh
-# SSH in
-ssh root@157.180.91.106
+# Status of all containers
+docker compose -f docker-compose.prod.yml ps
 
-# Status of everything
-cd /opt/hooksmith && docker compose -f docker-compose.prod.yml ps
-
-# Tail one service
+# Tail a specific service
 docker compose -f docker-compose.prod.yml logs -f web
 
-# Restart web+worker after .env change (no rebuild)
+# Restart web+worker after a .env change (no rebuild needed for runtime env)
 docker compose -f docker-compose.prod.yml up -d --force-recreate web worker
 
-# Full rebuild (after Dockerfile or NEXT_PUBLIC_* changes)
+# Full rebuild (needed after Dockerfile or NEXT_PUBLIC_* changes)
 docker compose -f docker-compose.prod.yml up -d --build
 
-# Run a one-off manual backup
+# Inspect actual env in the running container
+docker compose -f docker-compose.prod.yml exec web printenv | grep -E '^(AUTH_URL|EMAIL_FROM|SENTRY_DSN)'
+
+# Trigger a backup manually
 /usr/local/bin/odyhook-backup.sh
 
 # List backups in R2
 rclone ls r2:odyhook-backups | sort -r | head
 
-# Run drift / digest jobs on demand
+# Run cron jobs on demand
 docker compose -f docker-compose.prod.yml exec -T web npm run job:drift
 docker compose -f docker-compose.prod.yml exec -T web npm run job:digest
 
-# Inspect actual env in the running container (sanity-check)
-docker compose -f docker-compose.prod.yml exec web printenv | grep -E '^(AUTH_URL|NEXT_PUBLIC_APP_URL|EMAIL_FROM)'
+# Open a psql shell into the running DB
+docker compose -f docker-compose.prod.yml exec postgres psql -U hooksmith hooksmith
+
+# Trigger a one-off Sentry test event
+docker compose -f docker-compose.prod.yml exec -T worker node -e "
+const Sentry = require('@sentry/nextjs');
+Sentry.init({ dsn: process.env.SENTRY_DSN, enabled: true });
+Sentry.captureException(new Error('manual test'));
+Sentry.flush(5000).then(() => process.exit(0));
+"
 ```
 
-## Recovery scenarios
+---
 
-### Site is down
+## Cost breakdown (monthly, EUR)
 
-1. SSH in, `docker compose ps`. Anything not `Up`?
-2. If yes, check that container's logs.
-3. Common cause: a deploy left containers restarting. `docker compose logs web` will show the error. Fix the code, push again.
+| Item | Cost |
+|---|---|
+| Hetzner CX23 server | €4.95 |
+| Porkbun `odyhook.dev` domain | ~€1.07/mo (paid annually) |
+| Resend (free tier — 3,000 emails/mo) | €0 |
+| Cloudflare R2 (well under 10 GB / 1M writes / 10M reads free tier) | €0 |
+| Sentry (free tier — 5k events/mo) | €0 |
+| GitHub Actions (public repo — unlimited minutes) | €0 |
+| Anthropic API (BYOK — each user pays for their own usage) | €0 to Odyhook |
+| **Total ongoing** | **~€6/month** |
 
-### HTTPS broken / cert expired
+---
 
-Caddy auto-renews 30 days before expiry. If something genuinely went wrong:
+## Project decisions log
 
-```sh
-docker compose -f docker-compose.prod.yml logs caddy | grep -i "error\|cert"
-```
+These are non-obvious choices worth knowing about before "fixing" them:
 
-Common cause: DNS stopped pointing at the right IP. Confirm with `dig +short odyhook.dev` — should return `157.180.91.106`.
+- **Postgres DB name is still `hooksmith`** even after the Odyhook rebrand. Avoiding a `pg_dump`+restore migration. Internal name only — never user-visible. See [project_odyhook_rename](../../.claude/projects/-Users-nikosgkikas-Desktop-PracticeProjects-hooksmith/memory/project_odyhook_rename.md) (Claude memory).
+- **`/opt/hooksmith` directory** on the server (not `/opt/odyhook`). Renaming would require `docker compose down` and reconnecting named volumes; cosmetic only. Same reason as DB name.
+- **Compose project name `hooksmith`** (basename of the directory). Container names show as `hooksmith-web-1`, `hooksmith-postgres-1`, etc. Cosmetic.
+- **Repo on user's laptop also at `~/Desktop/PracticeProjects/hooksmith`** — not renamed for the same reason.
+- **GitHub repo URL is `github.com/NikosGkikas13/hooksmith`**, not `.../odyhook`. Renaming would break the deploy workflow's hardcoded URL and require updating the auto-deploy SSH path.
+- **Sign-in page lives at `/signin`**, has both GitHub and email options. Homepage links to `/signin` with a single button — duplicate "Continue with GitHub" was removed.
+- **`onboarding@resend.dev`** was used as the From address until `odyhook.dev` was verified in Resend. Now using `no-reply@odyhook.dev`. The `no-reply@` mailbox doesn't actually exist — Resend only handles outbound; nobody can reply to those emails.
+- **Anthropic is BYOK.** There's no central Anthropic key in `.env`. Each user pastes their own at Settings → API Keys, encrypted with `ENCRYPTION_KEY`.
 
-### Email stopped working
+---
 
-1. Check Resend dashboard → Domains. Did `odyhook.dev` revert to "Pending"? If so, DNS records at Porkbun likely got modified.
-2. Check Resend → API Keys. Is the key still active?
-3. Inspect runtime env: `docker compose exec web printenv | grep EMAIL`
+## Known gaps / not set up (deliberately)
 
-### Lost the .env file
-
-There's no off-site backup of `.env` currently (it lives only on the server). If the server is destroyed, you'd need to:
-
-- Regenerate `AUTH_SECRET` (logs everyone out, not catastrophic)
-- Regenerate `ENCRYPTION_KEY` — **this is catastrophic** because every encrypted DB column becomes unreadable. Consider periodically exporting `.env` to a password manager.
-- Re-paste known values from external dashboards (Resend, R2, Sentry, GitHub OAuth)
-- Re-generate `POSTGRES_PASSWORD` and re-apply to both `.env` AND the running Postgres user
-
-### DB restore from R2
-
-See "Backups → Restore procedure" above.
-
-### Deploy key compromised
-
-The deploy key can only run `odyhook-deploy.sh` — worst case is unauthorized redeploys of `main`. To rotate:
-
-```sh
-# On server
-ssh-keygen -t ed25519 -f /root/.ssh/odyhook_deploy_new -N "" -q
-# Replace the line in authorized_keys (keep the command= prefix)
-# Update GitHub secret DEPLOY_SSH_KEY with the new private key
-# Delete the old keypair
-```
-
-## What's intentionally NOT set up
-
-These are *known gaps* — call out before assuming they exist:
+Call these out before assuming they exist:
 
 - **No staging environment.** Pushes go straight to prod.
-- **No CI tests before deploy.** A broken push will fail at the build step on the server but won't be caught earlier.
-- **No off-site backup of `.env`.** See recovery scenario above.
-- **No alerting on cron failures.** Cron output lands in a log file but nothing pages you if `job:backup` fails three nights in a row. Sentry would catch worker exceptions but not silent cron exit codes.
-- **No HSTS preload, CSP, or hardening headers.** Caddy default config; could be tightened.
+- **No CI tests before deploy.** Failures caught only at server-side build.
+- **No off-site backup of `.env`.** See [recovery.md](recovery.md#lost-env-file) for the consequences.
+- **No alerting on cron failures.** Backup script could silently fail; nothing pages you.
+- **No HSTS preload, CSP, or extra security headers.** Default Caddy config.
+- **No rate-limit alerting.** Per-source 429s land in the dashboard but don't notify the source owner.
+- **No automated DB restore drill.** Untested backups are wishful thinking — see recovery.md for a manual procedure.
 
-When adding new infrastructure, update this file in the same commit.
+When implementing any of these, update this section.
+
+---
+
+## Where to look for more
+
+| Topic | File |
+|---|---|
+| Why each tech was chosen | [ARCHITECTURE.md](../ARCHITECTURE.md) |
+| Disaster recovery procedures | [infra/recovery.md](recovery.md) |
+| Original "we just rented this server" walkthrough | [hetzner.md](../hetzner.md) |
+| Earlier deployment doc (some content stale — Fly.io path was never used) | [DEPLOY.md](../DEPLOY.md) |
+| Local-dev quickstart | [README.md](../README.md) |
+| Next.js 16 specifics (it's NOT the Next.js you know) | [AGENTS.md](../AGENTS.md) |
