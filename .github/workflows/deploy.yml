@@ -1,0 +1,33 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Serialize deploys: never run two at once.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pin the server's host key so the runner can't be MITM'd.
+          echo "157.180.91.106 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILPoKZ0omSSw3gRk+NFDYrLY71/7AC0FZTwB4TJ37jQd" >> ~/.ssh/known_hosts
+
+      - name: Trigger deploy
+        # The authorized_keys entry on the server pins this key to running
+        # /usr/local/bin/odyhook-deploy.sh — passing any command here is
+        # ignored. We still pass an explicit one so the workflow log is
+        # self-documenting.
+        run: ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes root@157.180.91.106 deploy
