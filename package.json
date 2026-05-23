@@ -25,6 +25,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "@sentry/nextjs": "^10.53.1",
     "bullmq": "^5.73.3",
     "ioredis": "^5.10.1",
     "next": "16.2.3",

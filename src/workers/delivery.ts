@@ -3,7 +3,17 @@
 // and reschedules retries with exponential backoff on failure.
 
 import "dotenv/config";
+import * as Sentry from "@sentry/nextjs";
 import { Worker, type Job } from "bullmq";
+
+// Initialise Sentry early so any import-time errors below are captured.
+// Disabled automatically when SENTRY_DSN is unset (local dev).
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  enabled: !!process.env.SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  environment: process.env.NODE_ENV,
+});
 
 import { prisma } from "../lib/prisma";
 import { decryptJson } from "../lib/crypto";
