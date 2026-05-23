@@ -90,4 +90,4 @@ Configurable in `src/lib/queue.ts` (`RETRY_DELAYS_MS`).
 
 Point a destination at `https://httpbin.org/status/500` and send an event —
 the worker logs will show the backoff schedule, and the event detail page
-will show each failed attempt in the delivery timeline.
+will show each failed attempt in the delivery timeline..
