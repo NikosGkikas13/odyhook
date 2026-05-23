@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { auth, signIn } from "@/auth";
+import { auth } from "@/auth";
 
 export default async function Home() {
   const session = await auth();
@@ -18,37 +18,13 @@ export default async function Home() {
           Ingest every event. Log it forever. Forward it anywhere. Retry on
           failure. Replay with one click.
         </p>
-        <div className="mt-10 flex items-center justify-center gap-3">
-          {session?.user ? (
-            <Link
-              href="/sources"
-              className="inline-flex h-11 items-center rounded-md bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-            >
-              Open dashboard
-            </Link>
-          ) : (
-            <Link
-              href="/signin"
-              className="inline-flex h-11 items-center rounded-md bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-            >
-              Sign in
-            </Link>
-          )}
-          {!session?.user && (
-            <form
-              action={async () => {
-                "use server";
-                await signIn("github", { redirectTo: "/sources" });
-              }}
-            >
-              <button
-                type="submit"
-                className="inline-flex h-11 items-center rounded-md border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              >
-                Continue with GitHub
-              </button>
-            </form>
-          )}
+        <div className="mt-10 flex items-center justify-center">
+          <Link
+            href={session?.user ? "/sources" : "/signin"}
+            className="inline-flex h-11 items-center rounded-md bg-zinc-900 px-5 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          >
+            {session?.user ? "Open dashboard" : "Sign in"}
+          </Link>
         </div>
       </div>
     </main>
