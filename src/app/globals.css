@@ -191,6 +191,12 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Tailwind 4 dropped the UA cursor on buttons. Restore it for actionable
+   buttons (disabled ones keep the default). */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 /* ============================================================
    Status dots
    ============================================================ */
