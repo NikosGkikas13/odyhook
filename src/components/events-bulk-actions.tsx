@@ -157,7 +157,7 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
           type="button"
           onClick={runReplay}
           disabled={actionsDisabled}
-          className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          className="btn-primary-ody inline-flex h-8 items-center rounded-md px-3 text-xs font-medium disabled:opacity-60"
         >
           {busy === "replay" ? "Replaying…" : "Replay"}
         </button>
