@@ -105,6 +105,14 @@ model Destination {
   url         String
   headersEnc  String? // encrypted JSON blob: { "X-Api-Key": "..." }
   timeoutMs   Int      @default(10000)
+  // Operational pause. When false, ingest skips creating deliveries for this
+  // destination and the worker refuses to deliver any already-enqueued job.
+  enabled     Boolean  @default(true)
+  // Optional outbound HMAC secret. When set, the worker signs each delivery
+  // with HMAC-SHA256 over `${unix_ts}.${body}` and attaches
+  // `X-Odyhook-Signature: v1=<hex>` + `X-Odyhook-Timestamp` so the downstream
+  // receiver can verify it. Encrypted at rest like other secrets.
+  outboundSecretEnc String?
   createdAt   DateTime @default(now())
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -181,10 +189,20 @@ model Event {
   bodyRaw     String // raw request body as text
   receivedAt  DateTime @default(now())
   remoteIp    String?
+  // Stable per-source dedupe key. Computed at ingest time from (in priority):
+  //   1. Idempotency-Key request header
+  //   2. Stripe `event.id` parsed from the body when verifyStyle="stripe"
+  //   3. X-GitHub-Delivery header when verifyStyle="github"
+  //   4. Fallback: sha256(body) hex
+  // Nullable for rows created before this column existed. Combined with
+  // sourceId in a unique index — Postgres allows multiple NULLs, so legacy
+  // rows don't conflict with each other.
+  idempotencyKey String?
 
   source     Source     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   deliveries Delivery[]
 
+  @@unique([sourceId, idempotencyKey])
   @@index([sourceId, receivedAt])
 }
 

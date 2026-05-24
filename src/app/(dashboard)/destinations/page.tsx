@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   createDestination,
   deleteDestination,
+  toggleDestinationEnabled,
 } from "@/lib/actions/destinations";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,25 @@ export default async function DestinationsPage() {
               className="rounded-md border border-zinc-200 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
+          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+            <span className="text-zinc-600 dark:text-zinc-400">
+              Outbound signing secret (optional)
+            </span>
+            <input
+              name="outboundSecret"
+              type="password"
+              autoComplete="off"
+              placeholder="paste a strong shared secret (16+ chars) to enable HMAC signing"
+              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
+            />
+            <span className="text-xs text-zinc-500">
+              When set, every delivery to this URL carries
+              <code className="mx-1">X-Odyhook-Signature: v1=&lt;hex&gt;</code>
+              and <code>X-Odyhook-Timestamp</code>. Verify with
+              <code className="mx-1">HMAC-SHA256(secret, `${"${timestamp}"}.${"${body}"}`)</code>.
+              Stored encrypted; we can&apos;t show it back to you.
+            </span>
+          </label>
           <div className="sm:col-span-2">
             <button
               type="submit"
@@ -97,6 +117,7 @@ export default async function DestinationsPage() {
                 <th className="px-4 py-3 text-right">Timeout</th>
                 <th className="px-4 py-3 text-right">Routes</th>
                 <th className="px-4 py-3 text-right">Deliveries</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -104,7 +125,7 @@ export default async function DestinationsPage() {
               {destinations.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-12 text-center text-zinc-500"
                   >
                     No destinations yet. Create one above.
@@ -114,7 +135,7 @@ export default async function DestinationsPage() {
                 destinations.map((d) => (
                   <tr
                     key={d.id}
-                    className="border-b border-zinc-100 dark:border-zinc-800"
+                    className={`border-b border-zinc-100 dark:border-zinc-800 ${d.enabled ? "" : "opacity-60"}`}
                   >
                     <td className="px-4 py-3 font-medium">{d.name}</td>
                     <td className="px-4 py-3">
@@ -131,16 +152,46 @@ export default async function DestinationsPage() {
                     <td className="px-4 py-3 text-right tabular-nums">
                       {d._count.deliveries}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <form action={deleteDestination}>
-                        <input type="hidden" name="id" value={d.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-red-600 hover:underline"
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          d.enabled
+                            ? "inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        }
+                      >
+                        {d.enabled ? "Active" : "Paused"}
+                      </span>
+                      {d.outboundSecretEnc ? (
+                        <span
+                          title="Outbound HMAC signing enabled"
+                          className="ml-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
                         >
-                          Delete
-                        </button>
-                      </form>
+                          Signed
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-3">
+                        <form action={toggleDestinationEnabled}>
+                          <input type="hidden" name="id" value={d.id} />
+                          <button
+                            type="submit"
+                            className="text-xs text-zinc-600 hover:underline dark:text-zinc-300"
+                          >
+                            {d.enabled ? "Pause" : "Resume"}
+                          </button>
+                        </form>
+                        <form action={deleteDestination}>
+                          <input type="hidden" name="id" value={d.id} />
+                          <button
+                            type="submit"
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))

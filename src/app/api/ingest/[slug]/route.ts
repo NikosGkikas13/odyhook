@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { verifySignature, type VerifyStyle } from "@/lib/hmac";
+import { computeIdempotencyKey } from "@/lib/idempotency";
 import { getDeliveryQueue } from "@/lib/queue";
 import { checkRateLimit, configForSource } from "@/lib/ratelimit";
 import { redactSensitiveHeaders } from "@/lib/sensitive-headers";
@@ -61,7 +62,11 @@ export async function POST(
     where: { slug },
     include: {
       routes: {
-        where: { enabled: true },
+        // Skip routes whose destination is paused — those events simply
+        // aren't queued. The destination toggle is the operator's "do not
+        // deliver right now" switch; we don't want a backlog to drain
+        // through it the moment they re-enable.
+        where: { enabled: true, destination: { enabled: true } },
         include: { destination: true },
       },
     },
@@ -165,23 +170,83 @@ export async function POST(
     req.headers.get("x-real-ip") ??
     null;
 
-  // Persist the event + one pending delivery per routed destination, then enqueue.
-  const event = await prisma.event.create({
-    data: {
-      sourceId: source.id,
-      method: req.method,
-      headersJson: headersObj,
-      bodyRaw: rawBody,
-      remoteIp,
-      deliveries: {
-        create: source.routes.map((r) => ({
-          destinationId: r.destinationId,
-          status: "pending",
-        })),
-      },
+  // Dedupe identical re-sends from the source provider (Stripe/GitHub etc.
+  // re-fire on their own retry schedules) by computing a stable per-source
+  // key and reusing the prior event row if we've already seen it.
+  const idempotencyKey = computeIdempotencyKey(
+    req.headers,
+    rawBody,
+    source.verifyStyle,
+  );
+
+  const prior = await prisma.event.findUnique({
+    where: {
+      sourceId_idempotencyKey: { sourceId: source.id, idempotencyKey },
     },
-    include: { deliveries: true },
+    select: { id: true, _count: { select: { deliveries: true } } },
   });
+  if (prior) {
+    return NextResponse.json(
+      {
+        ok: true,
+        eventId: prior.id,
+        deliveries: prior._count.deliveries,
+        duplicate: true,
+      },
+      { status: 200 },
+    );
+  }
+
+  // Persist the event + one pending delivery per routed destination, then enqueue.
+  // The unique index on (sourceId, idempotencyKey) handles the create-create race
+  // when two concurrent retries arrive at the same instant — we catch P2002 and
+  // return the prior row instead of inserting a duplicate.
+  let event;
+  try {
+    event = await prisma.event.create({
+      data: {
+        sourceId: source.id,
+        method: req.method,
+        headersJson: headersObj,
+        bodyRaw: rawBody,
+        remoteIp,
+        idempotencyKey,
+        deliveries: {
+          create: source.routes.map((r) => ({
+            destinationId: r.destinationId,
+            status: "pending",
+          })),
+        },
+      },
+      include: { deliveries: true },
+    });
+  } catch (err) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: unknown }).code === "P2002"
+    ) {
+      const dup = await prisma.event.findUnique({
+        where: {
+          sourceId_idempotencyKey: { sourceId: source.id, idempotencyKey },
+        },
+        select: { id: true, _count: { select: { deliveries: true } } },
+      });
+      if (dup) {
+        return NextResponse.json(
+          {
+            ok: true,
+            eventId: dup.id,
+            deliveries: dup._count.deliveries,
+            duplicate: true,
+          },
+          { status: 200 },
+        );
+      }
+    }
+    throw err;
+  }
 
   // Enqueue one job per routed destination.
   const queue = getDeliveryQueue();
