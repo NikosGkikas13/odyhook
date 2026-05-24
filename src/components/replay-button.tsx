@@ -31,7 +31,7 @@ export function ReplayButton({ eventId }: { eventId: string }) {
         type="button"
         onClick={replay}
         disabled={isPending}
-        className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+        className="btn-primary-ody inline-flex h-9 items-center rounded-md px-4 text-sm font-medium disabled:opacity-60"
       >
         {isPending ? "Replaying…" : "Replay"}
       </button>

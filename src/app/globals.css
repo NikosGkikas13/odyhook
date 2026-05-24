@@ -164,7 +164,10 @@ body {
 .dark .brand-wordmark .ody { color: var(--zinc-100); }
 
 /* ============================================================
-   Primary button — navy fill in light, blue text ghost in dark
+   Primary button — filled in both themes. Navy in light; the saturated
+   brand-blue (brighter than navy, still on-brand) in dark so the button
+   reads clearly against the deep-zinc page surface. White text in both —
+   #1857C6 against white gives WCAG AAA contrast.
    ============================================================ */
 .btn-primary-ody {
   background: var(--brand-navy);
@@ -174,12 +177,12 @@ body {
   background: var(--brand-navy-deep);
 }
 .dark .btn-primary-ody {
-  background: transparent;
-  color: var(--brand-blue-fg);
+  background: #5b8cee;
+  color: #ffffff;
 }
 .dark .btn-primary-ody:hover:not(:disabled) {
-  background: transparent;
-  color: var(--link-fg-hover);
+  background: #7BA6F2;
+  color: #ffffff;
 }
 
 /* ============================================================
@@ -189,6 +192,12 @@ body {
   outline: 2px solid var(--brand-blue);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
+}
+
+/* Tailwind 4 dropped the UA cursor on buttons. Restore it for actionable
+   buttons (disabled ones keep the default). */
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 /* ============================================================

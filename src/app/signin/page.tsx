@@ -12,14 +12,20 @@ export default function SignInPage({
     <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
       <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-8 dark:border-zinc-700 dark:bg-zinc-900">
         <div className="mb-6 flex items-center gap-2">
-          <Image src="/odyhook-mark.png" alt="" width={56} height={56} unoptimized />
+          <Image
+            src="/c60f052d-1a1f-461a-9527-c782a250f441__1_-removebg-preview.png"
+            alt=""
+            style={{ background: "white", borderRadius: "5px", padding: "2px" }}
+            width={56}
+            height={56}
+            unoptimized
+          />
           <span className="brand-wordmark">
-            <span className="ody">ody</span><span className="hook">hook</span>
+            <span className="ody">ody</span>
+            <span className="hook">hook</span>
           </span>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight">
-          Sign in
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Continue with GitHub, or get a magic link by email.
         </p>

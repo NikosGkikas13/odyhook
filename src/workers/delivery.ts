@@ -16,7 +16,12 @@ Sentry.init({
 });
 
 import { prisma } from "../lib/prisma";
-import { decryptJson } from "../lib/crypto";
+import { decrypt, decryptJson } from "../lib/crypto";
+import {
+  OUTBOUND_SIGNATURE_HEADER,
+  OUTBOUND_TIMESTAMP_HEADER,
+  signOutbound,
+} from "../lib/outbound-sign";
 import { runTransformation } from "../lib/sandbox/quickjs";
 import { evaluateFilter, type FilterAst } from "../lib/filters/evaluator";
 import { assertSafeUrl, SsrfError } from "../lib/ssrf";
@@ -79,6 +84,23 @@ async function processDelivery(job: Job<DeliveryJob>) {
     return;
   }
   if (delivery.status === "delivered" || delivery.status === "exhausted") {
+    return;
+  }
+
+  // Destination was paused after this job was enqueued — exhaust it so the
+  // user can see it on the events page and replay after re-enabling. We
+  // don't leave it in pending: BullMQ would keep retrying and the queue
+  // would balloon while the destination stays paused.
+  if (!delivery.destination.enabled) {
+    await prisma.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: "exhausted",
+        lastError: "destination paused",
+        nextRetryAt: null,
+      },
+    });
+    console.log(`[worker] ${deliveryId} skipped — destination paused`);
     return;
   }
 
@@ -184,6 +206,25 @@ async function processDelivery(job: Job<DeliveryJob>) {
       headers["content-type"] = "application/json";
     } else {
       transformError = `transform failed: ${result.error}`;
+    }
+  }
+
+  // Outbound HMAC: sign the final body (post-transform) so receivers can
+  // verify the request actually came from us. The signature lives on the
+  // request alongside Stripe-shaped reference (`v1=<hex>` + timestamp), so
+  // the verifier just needs the shared secret. We don't sign when the
+  // transform errored — the request isn't going to be sent anyway.
+  if (!transformError && delivery.destination.outboundSecretEnc) {
+    try {
+      const secret = decrypt(delivery.destination.outboundSecretEnc);
+      const { signature, timestamp } = signOutbound(secret, body);
+      headers[OUTBOUND_SIGNATURE_HEADER] = signature;
+      headers[OUTBOUND_TIMESTAMP_HEADER] = timestamp;
+    } catch (err) {
+      console.error(
+        `[worker] failed to sign outbound for ${delivery.destinationId}:`,
+        err,
+      );
     }
   }
 
