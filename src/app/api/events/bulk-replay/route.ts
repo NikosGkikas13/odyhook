@@ -19,8 +19,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Match the single-event replay behaviour: rate-limiter failures fail open
-  // so a flaky Redis doesn't block human-driven actions.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
+  }
+  const parsed = parseBulkIds(body);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  // Charge one replay token per validated call. We deliberately validate
+  // the body first so a malformed request doesn't burn a token. Rate-limiter
+  // failures fail open so a flaky Redis doesn't block human-driven actions.
   try {
     const rl = await checkReplayRateLimit(session.user.id);
     if (!rl.allowed) {
@@ -38,17 +50,6 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[bulk-replay] rate limiter error (failing open):", err);
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
-  }
-  const parsed = parseBulkIds(body);
-  if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
   // Single query establishes ownership AND fetches the current enabled routes
