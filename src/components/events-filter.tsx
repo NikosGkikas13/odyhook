@@ -53,10 +53,10 @@ export function EventsFilter({
   }
 
   const selectClass =
-    "h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900";
+    "h-9 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-sm sm:flex-none sm:px-3 dark:border-zinc-800 dark:bg-zinc-900";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         aria-label="Filter by source"
         value={sourceId}

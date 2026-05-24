@@ -65,6 +65,13 @@
   --link-fg:       var(--brand-blue);
   --link-fg-hover: var(--brand-blue-hover);
 
+  /* Visible-on-surface accent — same as brand-blue in light mode, lifts to
+     a brighter blue in dark. Use for UI accents (active nav, wordmark hook,
+     toggle flash). Don't use where the literal brand color matters. */
+  --brand-blue-fg: var(--brand-blue);
+
+  --bg-row-hover: color-mix(in oklch, var(--zinc-50) 50%, transparent);
+
   /* ---------- Font ---------- */
   --font-sans:  var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono:  var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -85,24 +92,41 @@
 }
 
 .dark {
+  /* Surface ladder: page (deepest) → cards → muted heads/inputs.
+     Keeping these distinct ensures cards visually lift off the page. */
   --bg:          var(--zinc-950);
-  --bg-elevated: var(--zinc-950);
-  --bg-muted:    var(--zinc-900);
+  --bg-elevated: var(--zinc-900);
+  --bg-muted:    var(--zinc-800);
+  --bg-row-hover: color-mix(in oklch, var(--zinc-700) 40%, transparent);
 
   --fg-1: var(--zinc-100);
-  --fg-2: var(--zinc-400);
-  --fg-3: var(--zinc-500);
+  --fg-2: var(--zinc-300);
+  --fg-3: var(--zinc-400);
   --fg-4: var(--zinc-500);
 
-  --border-1: var(--zinc-800);
-  --border-2: var(--zinc-900);
+  /* Border tiers must stay distinct from --bg-elevated (zinc-900). */
+  --border-1: var(--zinc-700);
+  --border-2: var(--zinc-800);
 
   --link-fg:       #5B8DEF;
   --link-fg-hover: #93B5F6;
 
+  /* Brand-blue as a visible UI accent on dark surfaces. */
+  --brand-blue-fg: #5B8DEF;
+
+  /* Lift in_flight so the pulse animation is visible on zinc-950. */
+  --status-in-flight: #5B8DEF;
+
+  /* Bump tint opacity so pills/badges read on dark elevated surfaces. */
+  --status-delivered-tint: color-mix(in oklch, var(--status-delivered) 20%, transparent);
+  --status-pending-tint:   color-mix(in oklch, var(--status-pending)   20%, transparent);
+  --status-in-flight-tint: color-mix(in oklch, var(--status-in-flight) 22%, transparent);
+  --status-failed-tint:    color-mix(in oklch, var(--status-failed)    20%, transparent);
+  --status-exhausted-tint: color-mix(in oklch, var(--status-exhausted) 22%, transparent);
+
   --status-delivered-fg: #34d399;
   --status-pending-fg:   #fbbf24;
-  --status-in-flight-fg: #5B8DEF;
+  --status-in-flight-fg: #93B5F6;
   --status-failed-fg:    #fb923c;
   --status-exhausted-fg: #f87171;
 
@@ -122,6 +146,40 @@ body {
   font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Brand wordmark — Nunito 800, two-tone, lowercase
+   ============================================================ */
+.brand-wordmark {
+  font-family: var(--font-brand);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-flex;
+}
+.brand-wordmark .ody  { color: var(--brand-navy); }
+.brand-wordmark .hook { color: var(--brand-blue-fg); }
+.dark .brand-wordmark .ody { color: var(--zinc-100); }
+
+/* ============================================================
+   Primary button — navy fill in light, blue text ghost in dark
+   ============================================================ */
+.btn-primary-ody {
+  background: var(--brand-navy);
+  color: #ffffff;
+}
+.btn-primary-ody:hover:not(:disabled) {
+  background: var(--brand-navy-deep);
+}
+.dark .btn-primary-ody {
+  background: transparent;
+  color: var(--brand-blue-fg);
+}
+.dark .btn-primary-ody:hover:not(:disabled) {
+  background: transparent;
+  color: var(--link-fg-hover);
 }
 
 /* ============================================================

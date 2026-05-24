@@ -50,13 +50,13 @@ export default async function RoutesPage() {
       </div>
 
       {sources.length === 0 || destinations.length === 0 ? (
-        <div className="rounded-lg border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-lg border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900">
           You need at least one source and one destination to create routes.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+            <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
               <tr>
                 <th className="px-4 py-3">Source \\ Destination</th>
                 {destinations.map((d) => (
@@ -70,7 +70,7 @@ export default async function RoutesPage() {
               {sources.map((s) => (
                 <tr
                   key={s.id}
-                  className="border-b border-zinc-100 dark:border-zinc-900"
+                  className="border-b border-zinc-100 dark:border-zinc-800"
                 >
                   <td className="px-4 py-3 font-medium">{s.name}</td>
                   {destinations.map((d) => {
@@ -101,23 +101,23 @@ export default async function RoutesPage() {
             Attach an AI-generated transformation or NL filter to any enabled
             route. Transformations run in a QuickJS sandbox before forwarding.
           </p>
-          <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-900 dark:border-zinc-800 dark:bg-zinc-950">
+          <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-700 dark:bg-zinc-900">
             {enabledRoutes.map((r) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between px-4 py-3 text-sm"
+                className="flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-medium">{r.source.name}</span>
-                  <span className="mx-2 text-zinc-400">→</span>
+                  <span className="text-zinc-400">→</span>
                   <span className="font-medium">{r.destination.name}</span>
                   {r.transformation && (
-                    <span className="ml-3 inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                       transform
                     </span>
                   )}
                   {r.filterAst && (
-                    <span className="ml-2 inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
                       filter
                     </span>
                   )}

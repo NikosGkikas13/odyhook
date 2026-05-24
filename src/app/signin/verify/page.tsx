@@ -5,8 +5,8 @@ export default async function VerifyRequestPage({
 }) {
   const { email } = await searchParams;
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
+      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-8 dark:border-zinc-700 dark:bg-zinc-900">
         <h1 className="text-xl font-semibold tracking-tight">
           Check your email
         </h1>

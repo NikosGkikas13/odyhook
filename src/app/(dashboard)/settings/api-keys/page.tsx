@@ -30,7 +30,7 @@ export default async function ApiKeysPage() {
         </p>
       </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <h2 className="text-sm font-medium">Anthropic API key</h2>
         {existing ? (
           <p className="mt-2 text-sm text-emerald-600">
@@ -53,7 +53,7 @@ export default async function ApiKeysPage() {
               type="password"
               required
               placeholder="sk-ant-api03-..."
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-900"
+              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
             <span className="text-xs text-zinc-500">
               Get one at{" "}
@@ -70,7 +70,7 @@ export default async function ApiKeysPage() {
           </label>
           <button
             type="submit"
-            className="inline-flex h-9 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="btn-primary-ody inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
           >
             Save key
           </button>

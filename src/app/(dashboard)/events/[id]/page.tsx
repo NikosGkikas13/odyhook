@@ -78,12 +78,12 @@ export default async function EventDetailPage({
         >
           ← Back to events
         </Link>
-        <div className="mt-2 flex items-center justify-between">
-          <div>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">
               {event.source.name}
             </h1>
-            <p className="mt-1 font-mono text-xs text-zinc-500">
+            <p className="mt-1 break-all font-mono text-xs text-zinc-500">
               {event.id} · {event.method} · {event.receivedAt.toISOString()}
             </p>
           </div>
@@ -92,8 +92,8 @@ export default async function EventDetailPage({
       </div>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+        <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
             Headers
           </div>
           <div className="max-h-96 overflow-auto p-4">
@@ -110,8 +110,8 @@ export default async function EventDetailPage({
           </div>
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+        <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
             Payload
           </div>
           <pre className="max-h-96 overflow-auto p-4 font-mono text-xs">
@@ -120,8 +120,8 @@ export default async function EventDetailPage({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+      <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="border-b border-zinc-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
           Deliveries
         </div>
         {event.deliveries.length === 0 ? (
@@ -129,7 +129,7 @@ export default async function EventDetailPage({
             No deliveries — this event was ingested but no routes were enabled.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-900">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {event.deliveries.map((d) => (
               <li key={d.id} className="flex flex-col gap-2 p-4">
                 <div className="flex-1">
@@ -150,7 +150,7 @@ export default async function EventDetailPage({
                     </p>
                   )}
                   {d.responseBodySnippet && (
-                    <pre className="mt-2 max-h-32 overflow-auto rounded bg-zinc-100 p-2 font-mono text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                    <pre className="mt-2 max-h-32 overflow-auto rounded bg-zinc-100 p-2 font-mono text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                       {d.responseBodySnippet}
                     </pre>
                   )}

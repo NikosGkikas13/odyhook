@@ -9,10 +9,13 @@ export default function SignInPage({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-5">
-          <Image src="/odyhook-logo.png" alt="Odyhook" width={100} height={100} className="dark:invert" />
+    <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
+      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-5 shadow-sm sm:p-8 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="mb-6 flex items-center gap-2">
+          <Image src="/odyhook-mark.png" alt="" width={56} height={56} unoptimized />
+          <span className="brand-wordmark">
+            <span className="ody">ody</span><span className="hook">hook</span>
+          </span>
         </div>
         <h1 className="text-xl font-semibold tracking-tight">
           Sign in
@@ -57,7 +60,7 @@ async function SignInForm({
       >
         <button
           type="submit"
-          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
         >
           Continue with GitHub
         </button>
@@ -85,11 +88,11 @@ async function SignInForm({
           type="email"
           required
           placeholder="you@example.com"
-          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         />
         <button
           type="submit"
-          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-zinc-100 px-4 text-sm font-medium text-zinc-900 hover:bg-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          className="btn-primary-ody inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-medium"
         >
           Send magic link
         </button>

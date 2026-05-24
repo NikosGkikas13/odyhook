@@ -27,7 +27,7 @@ export default async function SourcesPage() {
         </p>
       </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <h2 className="text-sm font-medium">New source</h2>
         <form action={createSource} className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
@@ -36,7 +36,7 @@ export default async function SourcesPage() {
               name="name"
               required
               placeholder="Stripe (prod)"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -46,7 +46,7 @@ export default async function SourcesPage() {
             <select
               name="verifyStyle"
               defaultValue="none"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             >
               <option value="none">None</option>
               <option value="stripe">Stripe</option>
@@ -62,14 +62,13 @@ export default async function SourcesPage() {
               name="signingSecret"
               type="password"
               placeholder="whsec_..."
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-900"
+              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
           <div className="sm:col-span-2">
             <button
               type="submit"
-              style={{ background: "var(--brand-navy)" }}
-            className="inline-flex h-9 items-center rounded-md px-4 text-sm font-medium text-white hover:opacity-90 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              className="btn-primary-ody inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
             >
               Create source
             </button>
@@ -78,9 +77,9 @@ export default async function SourcesPage() {
       </section>
 
       <section>
-        <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Ingest URL</th>
@@ -106,7 +105,7 @@ export default async function SourcesPage() {
                   return (
                     <tr
                       key={s.id}
-                      className="border-b border-zinc-100 dark:border-zinc-900"
+                      className="border-b border-zinc-100 dark:border-zinc-800"
                     >
                       <td className="px-4 py-3 font-medium">{s.name}</td>
                       <td className="px-4 py-3">

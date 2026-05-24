@@ -151,7 +151,7 @@ export default async function EventsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -167,9 +167,9 @@ export default async function EventsPage({
         <EventsFilter sources={sources} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <table className="w-full text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
             <tr>
               <th className="px-4 py-3 w-8"></th>
               <th className="px-4 py-3">Source</th>
@@ -197,7 +197,7 @@ export default async function EventsPage({
                 return (
                   <tr
                     key={e.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50"
+                    className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40"
                   >
                     <td className="px-4 py-3">
                       <span
