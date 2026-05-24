@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { Select, type SelectOption } from "@/components/ui/select";
+
 // Filter bar for the Events page: source, delivery status, time window.
 // Any change resets the `cursor` param (otherwise the cursor would point at
 // an event outside the new result set and pagination would silently break).
@@ -15,16 +17,21 @@ export type StatusFilter =
 
 export type SinceFilter = "" | "1h" | "24h" | "7d" | "30d";
 
-const STATUSES: { value: StatusFilter; label: string }[] = [
-  { value: "", label: "Any status" },
+// Radix Select forbids "" as an Item value (it's reserved for the "unset"
+// state). Use a sentinel for the "no filter" option and translate back to ""
+// for the URL params.
+const ALL = "__all__";
+
+const STATUSES: SelectOption[] = [
+  { value: ALL, label: "Any status" },
   { value: "delivered", label: "Delivered" },
   { value: "pending", label: "Pending" },
   { value: "failed", label: "Failed" },
   { value: "exhausted", label: "Exhausted" },
 ];
 
-const WINDOWS: { value: SinceFilter; label: string }[] = [
-  { value: "", label: "All time" },
+const WINDOWS: SelectOption[] = [
+  { value: ALL, label: "All time" },
   { value: "1h", label: "Last 1h" },
   { value: "24h", label: "Last 24h" },
   { value: "7d", label: "Last 7d" },
@@ -39,63 +46,44 @@ export function EventsFilter({
   const router = useRouter();
   const params = useSearchParams();
 
-  const sourceId = params.get("sourceId") ?? "";
-  const status = (params.get("status") as StatusFilter) ?? "";
-  const since = (params.get("since") as SinceFilter) ?? "";
+  const sourceId = params.get("sourceId") || ALL;
+  const status = params.get("status") || ALL;
+  const since = params.get("since") || ALL;
 
   function updateParam(key: string, value: string) {
     const next = new URLSearchParams(params.toString());
-    if (value) next.set(key, value);
+    if (value && value !== ALL) next.set(key, value);
     else next.delete(key);
     // Any filter change invalidates the current cursor — reset to first page.
     next.delete("cursor");
     router.push(`/events?${next.toString()}`);
   }
 
-  const selectClass =
-    "h-9 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-sm sm:flex-none sm:px-3 dark:border-zinc-800 dark:bg-zinc-900";
+  const sourceOptions: SelectOption[] = [
+    { value: ALL, label: "All sources" },
+    ...sources.map((s) => ({ value: s.id, label: s.name })),
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select
-        aria-label="Filter by source"
+      <Select
+        ariaLabel="Filter by source"
         value={sourceId}
-        onChange={(e) => updateParam("sourceId", e.target.value)}
-        className={selectClass}
-      >
-        <option value="">All sources</option>
-        {sources.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-
-      <select
-        aria-label="Filter by delivery status"
+        onValueChange={(v) => updateParam("sourceId", v)}
+        options={sourceOptions}
+      />
+      <Select
+        ariaLabel="Filter by delivery status"
         value={status}
-        onChange={(e) => updateParam("status", e.target.value)}
-        className={selectClass}
-      >
-        {STATUSES.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-
-      <select
-        aria-label="Filter by time window"
+        onValueChange={(v) => updateParam("status", v)}
+        options={STATUSES}
+      />
+      <Select
+        ariaLabel="Filter by time window"
         value={since}
-        onChange={(e) => updateParam("since", e.target.value)}
-        className={selectClass}
-      >
-        {WINDOWS.map((w) => (
-          <option key={w.value} value={w.value}>
-            {w.label}
-          </option>
-        ))}
-      </select>
+        onValueChange={(v) => updateParam("since", v)}
+        options={WINDOWS}
+      />
     </div>
   );
 }
