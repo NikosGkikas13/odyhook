@@ -143,39 +143,41 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
   }
 
   const busyAny = busy !== null || isPending;
+  const nothingSelected = selected.size === 0;
+  const actionsDisabled = busyAny || nothingSelected;
 
   return (
     <>
-      {selected.size > 0 && (
-        <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-white/90 px-4 py-2 text-sm shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/90">
-          <span className="font-medium">{selected.size} selected</span>
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={runReplay}
-            disabled={busyAny}
-            className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-          >
-            {busy === "replay" ? "Replaying…" : "Replay"}
-          </button>
-          <button
-            type="button"
-            onClick={runCancel}
-            disabled={busyAny}
-            className="inline-flex h-8 items-center rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950"
-          >
-            {busy === "cancel" ? "Cancelling…" : "Cancel"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            disabled={busyAny}
-            className="text-xs text-zinc-500 hover:text-zinc-900 disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
-            Clear
-          </button>
-        </div>
-      )}
+      <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-white/90 px-4 py-2 text-sm shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/90">
+        <span className={`font-medium ${nothingSelected ? "text-zinc-400 dark:text-zinc-500" : ""}`}>
+          {selected.size} selected
+        </span>
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={runReplay}
+          disabled={actionsDisabled}
+          className="inline-flex h-8 items-center rounded-md bg-zinc-900 px-3 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+        >
+          {busy === "replay" ? "Replaying…" : "Replay"}
+        </button>
+        <button
+          type="button"
+          onClick={runCancel}
+          disabled={actionsDisabled}
+          className="inline-flex h-8 items-center rounded-md border border-red-200 bg-white px-3 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950"
+        >
+          {busy === "cancel" ? "Cancelling…" : "Cancel"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelected(new Set())}
+          disabled={actionsDisabled}
+          className="text-xs text-zinc-500 hover:text-zinc-900 disabled:opacity-60 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          Clear
+        </button>
+      </div>
 
       {toast && (
         <div
