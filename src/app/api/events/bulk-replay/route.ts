@@ -83,9 +83,9 @@ export async function POST(req: Request) {
   if (toCreate.length === 0) {
     return NextResponse.json({
       ok: true,
-      eventsReplayed: events.length,
+      eventsReplayed: 0,
       deliveriesCreated: 0,
-      skipped: parsed.ids.length - events.length,
+      skipped: parsed.ids.length,
     });
   }
 
@@ -103,10 +103,11 @@ export async function POST(req: Request) {
     created.map((d) => queue.add("deliver", { deliveryId: d.id })),
   );
 
+  const eventsReplayed = new Set(toCreate.map((d) => d.eventId)).size;
   return NextResponse.json({
     ok: true,
-    eventsReplayed: events.length,
+    eventsReplayed,
     deliveriesCreated: created.length,
-    skipped: parsed.ids.length - events.length,
+    skipped: parsed.ids.length - eventsReplayed,
   });
 }
