@@ -24,8 +24,8 @@ export function parseBulkIds(body: unknown): ParseResult {
     return { ok: false, error: "ids must contain at least one entry" };
   }
   for (const v of raw) {
-    if (typeof v !== "string") {
-      return { ok: false, error: "ids entries must be string" };
+    if (typeof v !== "string" || v.length === 0) {
+      return { ok: false, error: "ids entries must be non-empty strings" };
     }
   }
   // Dedupe while preserving first-seen order. Callers may end up posting the

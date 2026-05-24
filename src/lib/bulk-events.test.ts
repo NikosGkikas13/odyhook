@@ -33,6 +33,12 @@ describe("parseBulkIds", () => {
     if (!r.ok) expect(r.error).toMatch(/string/);
   });
 
+  it("rejects empty-string entries", () => {
+    const r = parseBulkIds({ ids: ["a", "", "c"] });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/non-empty/i);
+  });
+
   it("rejects more than BULK_MAX_IDS ids", () => {
     const tooMany = Array.from({ length: BULK_MAX_IDS + 1 }, (_, i) => `id${i}`);
     const r = parseBulkIds({ ids: tooMany });
