@@ -1,8 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FlowDiagram } from "@/components/landing/flow-diagram";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +32,14 @@ export default async function Home() {
       <section className="landing-hero">
         <div className="landing-hero-copy">
           <p className="landing-eyebrow">
-            <span className="brand-wordmark" style={{ fontSize: 14 }}>
-              <span className="ody">ody</span>
-              <span className="hook">hook</span>
-            </span>
+            <Image
+              src="/c60f052d-1a1f-461a-9527-c782a250f441__1_-removebg-preview.png"
+              alt="Odyhook"
+              width={24}
+              height={24}
+              priority
+              style={{ background: "white", borderRadius: 4, padding: 2 }}
+            />
             <span className="landing-eyebrow-sep">/</span>
             webhook proxy
           </p>
@@ -121,16 +127,17 @@ export default async function Home() {
       </section>
 
       <footer className="landing-footer">
-        <span className="brand-wordmark" style={{ fontSize: 14 }}>
-          <span className="ody">ody</span>
-          <span className="hook">hook</span>
-        </span>
+        <Image
+          src="/c60f052d-1a1f-461a-9527-c782a250f441__1_-removebg-preview.png"
+          alt="Odyhook"
+          width={24}
+          height={24}
+          style={{ background: "white", borderRadius: 4, padding: 2 }}
+        />
         <span className="landing-footer-sep">·</span>
         <span>Webhooks that don&rsquo;t silently fail.</span>
         <span className="landing-footer-spacer" />
-        <Link className="landing-footer-link" href="/signin">
-          sign in
-        </Link>
+        <ThemeToggle />
       </footer>
     </main>
   );
