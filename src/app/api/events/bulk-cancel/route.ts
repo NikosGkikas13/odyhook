@@ -9,8 +9,11 @@ export const runtime = "nodejs";
 /**
  * Bulk cancel: flip non-terminal deliveries on the selected events to
  * `exhausted` with a "cancelled by user" marker. Doesn't touch BullMQ jobs
- * directly — the worker short-circuits on `exhausted` at delivery.ts:86-88,
- * so any queued/delayed jobs become no-ops on pickup.
+ * directly — jobs not yet picked up become no-ops on pickup because the
+ * worker short-circuits on `exhausted` at delivery.ts:86-88. Jobs already
+ * in-flight (status `in_flight`) will complete; the worker may overwrite
+ * the `exhausted` status with its own terminal write. Accepted as a known
+ * race; affected rows are at most the worker's concurrency (8) per cancel.
  *
  * No rate limit: this is a pure DB write that creates no worker work.
  */
