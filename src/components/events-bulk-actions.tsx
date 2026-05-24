@@ -148,7 +148,7 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-white/90 px-4 py-2 text-sm shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/90">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-white/90 px-4 py-2 text-sm shadow-sm backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/90">
         <span className={`font-medium ${nothingSelected ? "text-zinc-400 dark:text-zinc-500" : ""}`}>
           {selected.size} selected
         </span>
