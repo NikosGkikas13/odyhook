@@ -130,9 +130,11 @@ describe("recordExhausted", () => {
       const d = await makeDestination(u.id, { consecutiveFailures: 2 });
       const r = await recordExhausted(d.id, "HTTP 502");
       expect(r.tripped).toBe(true);
-      if (!r.tripped) throw new Error("expected tripped=true");
-      expect(r.destinationName).toBe("cb-test");
-      expect(r.ownerEmail).toBe(u.email);
+      if (r.tripped) {
+        expect(r.destinationName).toBe("cb-test");
+        expect(r.ownerEmail).toBe(u.email);
+        expect(r.consecutiveFailures).toBe(3);
+      }
       const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
       expect(after.enabled).toBe(false);
       expect(after.consecutiveFailures).toBe(3);

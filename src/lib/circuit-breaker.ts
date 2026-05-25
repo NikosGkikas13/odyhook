@@ -35,7 +35,12 @@ export async function recordSuccess(destinationId: string): Promise<void> {
 
 export type TripResult =
   | { tripped: false }
-  | { tripped: true; destinationName: string; ownerEmail: string };
+  | {
+      tripped: true;
+      destinationName: string;
+      ownerEmail: string;
+      consecutiveFailures: number;
+    };
 
 export async function recordExhausted(
   destinationId: string,
@@ -80,7 +85,16 @@ export async function recordExhausted(
   // The trip happened on this call — load owner info for the notifier.
   const d = await prisma.destination.findUniqueOrThrow({
     where: { id: destinationId },
-    select: { name: true, user: { select: { email: true } } },
+    select: {
+      name: true,
+      consecutiveFailures: true,
+      user: { select: { email: true } },
+    },
   });
-  return { tripped: true, destinationName: d.name, ownerEmail: d.user.email };
+  return {
+    tripped: true,
+    destinationName: d.name,
+    ownerEmail: d.user.email,
+    consecutiveFailures: d.consecutiveFailures,
+  };
 }

@@ -321,15 +321,19 @@ async function processDelivery(job: Job<DeliveryJob>) {
         console.warn(
           `[worker] circuit breaker tripped for destination ${delivery.destinationId} — notifying owner`,
         );
-        const counter = await prisma.destination.findUnique({
-          where: { id: delivery.destinationId },
-          select: { consecutiveFailures: true },
-        });
+        Sentry.captureMessage(
+          `circuit breaker tripped for destination ${delivery.destinationId}`,
+          "warning",
+        );
         const msg = composeDestinationDisabledEmail({
           destinationName: result.destinationName,
           reason: errorMsg,
-          consecutiveFailures: counter?.consecutiveFailures ?? 0,
+          consecutiveFailures: result.consecutiveFailures,
         });
+        // sendMail has no timeout configured (see src/lib/mailer.ts), so a
+        // hung SMTP relay can block this worker concurrency slot for the OS
+        // TCP default (~2min). Acceptable here — trips are rare — but
+        // worth revisiting if we ever wire alerts for noisier events.
         await sendMail({
           to: result.ownerEmail,
           subject: msg.subject,
