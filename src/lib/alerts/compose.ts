@@ -23,6 +23,10 @@ function sanitizeForSubject(s: string): string {
   return s.replace(/[\r\n\f]/g, "");
 }
 
+function sanitizeForSlackLabel(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export type ComposedEmail = { subject: string; text: string };
 
 export function composeEmail(ctx: AlertContext): ComposedEmail {
@@ -100,7 +104,7 @@ export function composeSlackBlocks(ctx: AlertContext): SlackBlocks {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*Destination:* <${link}|${ctx.destinationName}>`,
+          text: `*Destination:* <${link}|${sanitizeForSlackLabel(ctx.destinationName)}>`,
         },
         ...(fields.length ? { fields } : {}),
       },

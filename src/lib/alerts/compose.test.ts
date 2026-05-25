@@ -56,6 +56,16 @@ describe("composeSlackBlocks", () => {
     expect(txt).toContain("Billing prod");
     expect(txt).toContain("exhausted");
   });
+
+  it("escapes <, >, & in destinationName inside the mrkdwn link label", () => {
+    const blocks = composeSlackBlocks({
+      ...baseCtx,
+      destinationName: "A<b>&|c",
+    });
+    const sectionText = JSON.stringify(blocks);
+    expect(sectionText).toContain("A&lt;b&gt;&amp;|c");
+    expect(sectionText).not.toContain("A<b>&|c");
+  });
 });
 
 describe("composeWebhookPayload", () => {
