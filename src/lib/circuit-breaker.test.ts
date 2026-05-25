@@ -153,6 +153,7 @@ describe("recordExhausted", () => {
       expect(r.tripped).toBe(false);
       const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
       expect(after.autoDisabledAt).toBeNull();
+      expect(after.consecutiveFailures).toBe(10); // counter must NOT be incremented when already disabled
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }
