@@ -1,3 +1,9 @@
+// Tests in this file touch the dev Postgres via the Prisma client, which
+// reads DATABASE_URL at module-load time. Match the convention used by
+// the workers and scripts (see src/workers/delivery.ts) and load .env
+// before any module that transitively imports `prisma`.
+import "dotenv/config";
+
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { getFailureThreshold, recordSuccess } from "./circuit-breaker";
