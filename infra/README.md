@@ -246,6 +246,7 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | `AUTH_GITHUB_ID` `AUTH_GITHUB_SECRET` | GitHub OAuth app | runtime | Regenerate secret at github.com/settings/developers |
 | `SENTRY_DSN` | Error reporting endpoint | runtime | DSN is public-ish; rotate if abuse |
 | `RATE_LIMIT_PER_SEC` `RATE_LIMIT_BURST` | Default rate-limit when no per-source override (default 10/20) | runtime | numeric tuning |
+| `DESTINATION_FAILURE_THRESHOLD` | Consecutive exhausted deliveries before auto-disabling a destination (default `5`). | runtime | numeric tuning |
 
 **There is no off-site backup of `.env` currently.** If the server is destroyed, you'd regenerate most values from external dashboards but `ENCRYPTION_KEY` loss is unrecoverable for encrypted columns. See [recovery.md](recovery.md#lost-env-file).
 
