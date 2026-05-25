@@ -153,15 +153,22 @@ export default async function DestinationsPage() {
                       {d._count.deliveries}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={
-                          d.enabled
-                            ? "inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                            : "inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                        }
-                      >
-                        {d.enabled ? "Active" : "Paused"}
-                      </span>
+                      {d.enabled ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          Active
+                        </span>
+                      ) : d.autoDisabledAt ? (
+                        <span
+                          title={d.autoDisabledReason ?? undefined}
+                          className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300"
+                        >
+                          Auto-disabled
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                          Paused
+                        </span>
+                      )}
                       {d.outboundSecretEnc ? (
                         <span
                           title="Outbound HMAC signing enabled"
