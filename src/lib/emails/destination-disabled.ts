@@ -19,10 +19,15 @@ export function composeDestinationDisabledEmail(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const link = `${baseUrl}/destinations`;
   const reason = input.reason.slice(0, 300);
+  // Strip control chars from the destination name before it lands in the
+  // Subject header — defense-in-depth against header injection. The name
+  // is set by the destination's owner (also the email recipient), so the
+  // exposure is theoretical, but the sanitization is cheap.
+  const safeName = input.destinationName.replace(/[\r\n\f]/g, "");
   return {
-    subject: `Odyhook: destination "${input.destinationName}" auto-disabled`,
+    subject: `Odyhook: destination "${safeName}" auto-disabled`,
     text: [
-      `Heads up — Odyhook just auto-disabled your destination "${input.destinationName}".`,
+      `Heads up — Odyhook just auto-disabled your destination "${safeName}".`,
       "",
       `Reason: ${input.consecutiveFailures} consecutive deliveries exhausted their retries.`,
       `Last error: ${reason}`,

@@ -17,7 +17,7 @@ describe("composeDestinationDisabledEmail", () => {
     expect(msg.text).toContain("Billing (prod)");
     expect(msg.text).toContain("HTTP 502");
     expect(msg.text).toContain("5 consecutive");
-    expect(msg.text).toContain("https://odyhook.dev/destinations");
+    expect(msg.text).toContain("Resume here: https://odyhook.dev/destinations");
     if (original === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
     else process.env.NEXT_PUBLIC_APP_URL = original;
   });
@@ -30,7 +30,7 @@ describe("composeDestinationDisabledEmail", () => {
       reason: "timeout",
       consecutiveFailures: 5,
     });
-    expect(msg.text).toContain("/destinations");
+    expect(msg.text).toContain("Resume here: /destinations");
     if (original !== undefined) process.env.NEXT_PUBLIC_APP_URL = original;
   });
 
@@ -42,5 +42,16 @@ describe("composeDestinationDisabledEmail", () => {
       consecutiveFailures: 5,
     });
     expect(msg.text.length).toBeLessThan(1500);
+  });
+
+  it("strips newlines from destinationName to prevent subject header injection", () => {
+    const msg = composeDestinationDisabledEmail({
+      destinationName: "Evil\nBcc: attacker@example.com",
+      reason: "test",
+      consecutiveFailures: 5,
+    });
+    expect(msg.subject).not.toContain("\n");
+    expect(msg.subject).not.toContain("\r");
+    expect(msg.subject).toBe('Odyhook: destination "EvilBcc: attacker@example.com" auto-disabled');
   });
 });
