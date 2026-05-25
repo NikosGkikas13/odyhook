@@ -6,7 +6,7 @@ import "dotenv/config";
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { getFailureThreshold, recordSuccess } from "./circuit-breaker";
+import { getFailureThreshold, recordSuccess, recordExhausted } from "./circuit-breaker";
 import { prisma } from "./prisma";
 
 describe("getFailureThreshold", () => {
@@ -95,6 +95,81 @@ describe("recordSuccess", () => {
       const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
       expect(after.enabled).toBe(false);
       expect(after.consecutiveFailures).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+});
+
+describe("recordExhausted", () => {
+  beforeEach(() => {
+    process.env.DESTINATION_FAILURE_THRESHOLD = "3";
+  });
+  afterEach(() => {
+    delete process.env.DESTINATION_FAILURE_THRESHOLD;
+  });
+
+  it("increments consecutiveFailures and reports tripped=false below threshold", async () => {
+    const u = await makeUser();
+    try {
+      const d = await makeDestination(u.id, { consecutiveFailures: 0 });
+      const r = await recordExhausted(d.id, "HTTP 500");
+      expect(r.tripped).toBe(false);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.consecutiveFailures).toBe(1);
+      expect(after.enabled).toBe(true);
+      expect(after.autoDisabledAt).toBeNull();
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("flips enabled=false and reports tripped=true when threshold is reached", async () => {
+    const u = await makeUser();
+    try {
+      const d = await makeDestination(u.id, { consecutiveFailures: 2 });
+      const r = await recordExhausted(d.id, "HTTP 502");
+      expect(r.tripped).toBe(true);
+      expect(r.destinationName).toBe("cb-test");
+      expect(r.ownerEmail).toBe(u.email);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.enabled).toBe(false);
+      expect(after.consecutiveFailures).toBe(3);
+      expect(after.autoDisabledReason).toBe("HTTP 502");
+      expect(after.autoDisabledAt).toBeInstanceOf(Date);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("does not flip a destination that is already disabled (manual pause)", async () => {
+    const u = await makeUser();
+    try {
+      const d = await makeDestination(u.id, {
+        enabled: false,
+        consecutiveFailures: 10,
+      });
+      const r = await recordExhausted(d.id, "HTTP 500");
+      expect(r.tripped).toBe(false);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.autoDisabledAt).toBeNull();
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("only one concurrent caller reports tripped=true (race-safety)", async () => {
+    const u = await makeUser();
+    try {
+      const d = await makeDestination(u.id, { consecutiveFailures: 2 });
+      const [a, b] = await Promise.all([
+        recordExhausted(d.id, "race-a"),
+        recordExhausted(d.id, "race-b"),
+      ]);
+      const trippedCount = [a, b].filter((r) => r.tripped).length;
+      expect(trippedCount).toBe(1);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.enabled).toBe(false);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }

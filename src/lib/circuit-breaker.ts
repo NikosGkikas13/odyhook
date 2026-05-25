@@ -32,3 +32,49 @@ export async function recordSuccess(destinationId: string): Promise<void> {
     data: { consecutiveFailures: 0 },
   });
 }
+
+export type TripResult =
+  | { tripped: false }
+  | { tripped: true; destinationName: string; ownerEmail: string };
+
+export async function recordExhausted(
+  destinationId: string,
+  errorMsg: string,
+): Promise<TripResult> {
+  const threshold = getFailureThreshold();
+
+  // Step 1: bump the counter only if the destination is still enabled.
+  // If it's already disabled (manual pause or earlier trip from a sibling
+  // worker) we leave it alone — the operator is in control.
+  const bumped = await prisma.destination.updateMany({
+    where: { id: destinationId, enabled: true },
+    data: { consecutiveFailures: { increment: 1 } },
+  });
+  if (bumped.count === 0) return { tripped: false };
+
+  // Step 2: atomic trip — flip enabled to false ONLY IF the counter is
+  // now at or past the threshold AND the row is still enabled. The
+  // updateMany predicate is the race lock: with two concurrent callers,
+  // Postgres will serialize and only one will see `enabled=true` at
+  // write time, so only one trips.
+  const tripped = await prisma.destination.updateMany({
+    where: {
+      id: destinationId,
+      enabled: true,
+      consecutiveFailures: { gte: threshold },
+    },
+    data: {
+      enabled: false,
+      autoDisabledAt: new Date(),
+      autoDisabledReason: errorMsg.slice(0, 500),
+    },
+  });
+  if (tripped.count === 0) return { tripped: false };
+
+  // The trip happened on this call — load owner info for the notifier.
+  const d = await prisma.destination.findUniqueOrThrow({
+    where: { id: destinationId },
+    select: { name: true, user: { select: { email: true } } },
+  });
+  return { tripped: true, destinationName: d.name, ownerEmail: d.user.email };
+}
