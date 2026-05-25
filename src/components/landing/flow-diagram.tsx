@@ -1,7 +1,9 @@
 // Static-data animated flow diagram for the homepage hero.
 // Sources fan out to destinations via small bezier lanes; colored dots
-// travel each lane on a CSS keyframe (defined in globals.css) so the
-// reduced-motion fallback is just CSS, no React state.
+// ride each lane via SVG <animateMotion>+<mpath>, so the dot's path is
+// the same bezier the user sees — no diagonal shortcut on cross-row
+// routes. Reduced-motion users get the static layout with dots hidden
+// via a CSS rule on .flow-anim-dots.
 
 const SOURCES = [
   { id: "stripe", label: "stripe.com" },
@@ -126,7 +128,16 @@ export function FlowDiagram() {
             const y2 = ROW_YS[r.to];
             const midX = (x1 + x2) / 2;
             const d = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
-            return <path key={i} d={d} fill="none" stroke="var(--border-1)" strokeWidth={1} />;
+            return (
+              <path
+                key={i}
+                id={`flow-path-${i}`}
+                d={d}
+                fill="none"
+                stroke="var(--border-1)"
+                strokeWidth={1}
+              />
+            );
           })}
           {SOURCES.map((s, i) => (
             <FlowNode key={s.id} x={SRC_X} y={ROW_YS[i] - NODE_H / 2} label={s.label} kind="source" />
@@ -134,24 +145,37 @@ export function FlowDiagram() {
           {DESTINATIONS.map((d, i) => (
             <FlowNode key={d.id} x={DST_X} y={ROW_YS[i] - NODE_H / 2} label={d.label} kind="dest" />
           ))}
-        </svg>
 
-        <div className="flow-dots">
-          {ROUTES.map((r, i) => {
-            const dx = DST_IN_X - SRC_OUT_X;
-            const dyStart = ROW_YS[r.from];
-            const dyEnd = ROW_YS[r.to];
-            const style = {
-              left: `${(SRC_OUT_X / VB_W) * 100}%`,
-              top: `${dyStart}px`,
-              "--dx": `${(dx / VB_W) * 100}%`,
-              "--dy": `${dyEnd - dyStart}px`,
-              animationDuration: `${r.dur}ms`,
-              animationDelay: `${r.delay}ms`,
-            } as React.CSSProperties;
-            return <span key={i} className={`flow-dot flow-dot--${r.status}`} style={style} />;
-          })}
-        </div>
+          <g className="flow-anim-dots">
+            {ROUTES.map((r, i) => {
+              const dur = `${r.dur / 1000}s`;
+              const begin = `${r.delay / 1000}s`;
+              return (
+                <g key={i} opacity={0}>
+                  <circle r={9} fill={`var(--status-${r.status})`} opacity={0.18} />
+                  <circle
+                    r={4}
+                    fill={`var(--status-${r.status})`}
+                    stroke="var(--bg-elevated)"
+                    strokeOpacity={0.7}
+                    strokeWidth={2}
+                  />
+                  <animateMotion dur={dur} begin={begin} repeatCount="indefinite" rotate="0">
+                    <mpath href={`#flow-path-${i}`} />
+                  </animateMotion>
+                  <animate
+                    attributeName="opacity"
+                    values="0;1;1;0"
+                    keyTimes="0;0.08;0.9;1"
+                    dur={dur}
+                    begin={begin}
+                    repeatCount="indefinite"
+                  />
+                </g>
+              );
+            })}
+          </g>
+        </svg>
       </div>
 
       <div className="flow-tail">
