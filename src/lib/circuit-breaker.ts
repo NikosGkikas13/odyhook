@@ -22,9 +22,11 @@ export function getFailureThreshold(): number {
   return Math.floor(n);
 }
 
+// Always write — the row is hot and the write is cheap; not worth
+// reading first to avoid a no-op update. Throws Prisma `P2025` if the
+// destination was deleted between enqueue and call; callers in the
+// hot path should wrap with try/catch.
 export async function recordSuccess(destinationId: string): Promise<void> {
-  // Always write — the row is hot and the write is cheap; not worth
-  // reading first to avoid a no-op update.
   await prisma.destination.update({
     where: { id: destinationId },
     data: { consecutiveFailures: 0 },

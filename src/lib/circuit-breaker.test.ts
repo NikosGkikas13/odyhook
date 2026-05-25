@@ -65,29 +65,38 @@ async function makeDestination(userId: string, overrides: Partial<{
 describe("recordSuccess", () => {
   it("resets consecutiveFailures to 0", async () => {
     const u = await makeUser();
-    const d = await makeDestination(u.id, { consecutiveFailures: 3 });
-    await recordSuccess(d.id);
-    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
-    expect(after.consecutiveFailures).toBe(0);
-    await prisma.user.delete({ where: { id: u.id } });
+    try {
+      const d = await makeDestination(u.id, { consecutiveFailures: 3 });
+      await recordSuccess(d.id);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.consecutiveFailures).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
   });
 
   it("is a no-op when the counter is already 0", async () => {
     const u = await makeUser();
-    const d = await makeDestination(u.id, { consecutiveFailures: 0 });
-    await recordSuccess(d.id);
-    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
-    expect(after.consecutiveFailures).toBe(0);
-    await prisma.user.delete({ where: { id: u.id } });
+    try {
+      const d = await makeDestination(u.id, { consecutiveFailures: 0 });
+      await recordSuccess(d.id);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.consecutiveFailures).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
   });
 
   it("does NOT change the enabled flag (manual pause stays paused after a future success — see resume action)", async () => {
     const u = await makeUser();
-    const d = await makeDestination(u.id, { enabled: false, consecutiveFailures: 4 });
-    await recordSuccess(d.id);
-    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
-    expect(after.enabled).toBe(false);
-    expect(after.consecutiveFailures).toBe(0);
-    await prisma.user.delete({ where: { id: u.id } });
+    try {
+      const d = await makeDestination(u.id, { enabled: false, consecutiveFailures: 4 });
+      await recordSuccess(d.id);
+      const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+      expect(after.enabled).toBe(false);
+      expect(after.consecutiveFailures).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
   });
 });
