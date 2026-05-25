@@ -10,6 +10,8 @@
 // the default threshold of 5 corresponds to dozens of attempts before we
 // give up on the destination.
 
+import { prisma } from "./prisma";
+
 const DEFAULT_THRESHOLD = 5;
 
 export function getFailureThreshold(): number {
@@ -18,4 +20,13 @@ export function getFailureThreshold(): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_THRESHOLD;
   return Math.floor(n);
+}
+
+export async function recordSuccess(destinationId: string): Promise<void> {
+  // Always write — the row is hot and the write is cheap; not worth
+  // reading first to avoid a no-op update.
+  await prisma.destination.update({
+    where: { id: destinationId },
+    data: { consecutiveFailures: 0 },
+  });
 }

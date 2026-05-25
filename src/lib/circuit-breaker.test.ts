@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { getFailureThreshold } from "./circuit-breaker";
+import { getFailureThreshold, recordSuccess } from "./circuit-breaker";
+import { prisma } from "./prisma";
 
 describe("getFailureThreshold", () => {
   const original = process.env.DESTINATION_FAILURE_THRESHOLD;
@@ -27,5 +28,60 @@ describe("getFailureThreshold", () => {
   it("falls back to the default if the env var is <= 0", () => {
     process.env.DESTINATION_FAILURE_THRESHOLD = "0";
     expect(getFailureThreshold()).toBe(5);
+  });
+});
+
+async function makeUser() {
+  return prisma.user.create({
+    data: { email: `cb-${Date.now()}-${Math.random()}@test.local` },
+  });
+}
+
+async function makeDestination(userId: string, overrides: Partial<{
+  enabled: boolean;
+  consecutiveFailures: number;
+  autoDisabledAt: Date | null;
+  autoDisabledReason: string | null;
+}> = {}) {
+  return prisma.destination.create({
+    data: {
+      userId,
+      name: "cb-test",
+      url: "https://example.test/hook",
+      enabled: overrides.enabled ?? true,
+      consecutiveFailures: overrides.consecutiveFailures ?? 0,
+      autoDisabledAt: overrides.autoDisabledAt ?? null,
+      autoDisabledReason: overrides.autoDisabledReason ?? null,
+    },
+  });
+}
+
+describe("recordSuccess", () => {
+  it("resets consecutiveFailures to 0", async () => {
+    const u = await makeUser();
+    const d = await makeDestination(u.id, { consecutiveFailures: 3 });
+    await recordSuccess(d.id);
+    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+    expect(after.consecutiveFailures).toBe(0);
+    await prisma.user.delete({ where: { id: u.id } });
+  });
+
+  it("is a no-op when the counter is already 0", async () => {
+    const u = await makeUser();
+    const d = await makeDestination(u.id, { consecutiveFailures: 0 });
+    await recordSuccess(d.id);
+    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+    expect(after.consecutiveFailures).toBe(0);
+    await prisma.user.delete({ where: { id: u.id } });
+  });
+
+  it("does NOT change the enabled flag (manual pause stays paused after a future success — see resume action)", async () => {
+    const u = await makeUser();
+    const d = await makeDestination(u.id, { enabled: false, consecutiveFailures: 4 });
+    await recordSuccess(d.id);
+    const after = await prisma.destination.findUniqueOrThrow({ where: { id: d.id } });
+    expect(after.enabled).toBe(false);
+    expect(after.consecutiveFailures).toBe(0);
+    await prisma.user.delete({ where: { id: u.id } });
   });
 });
