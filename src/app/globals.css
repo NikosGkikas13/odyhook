@@ -489,7 +489,7 @@ button:not(:disabled) {
 }
 .snippet-out { color: var(--fg-3); }
 
-/* Footer */
+/* Footer (landing) */
 .landing-footer {
   display: flex; align-items: center; gap: 12px;
   padding: 24px 0 0;
