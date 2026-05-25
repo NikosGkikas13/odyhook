@@ -52,11 +52,11 @@ export async function recordExhausted(
   // If it's already disabled (manual pause or earlier trip from a sibling
   // worker) we leave it alone — the operator is in control.
   //
-  // Non-idempotent by design: BullMQ provides at-least-once delivery, so a
-  // worker crash between Postgres write and queue ack can re-fire this for
-  // the same delivery and double-count. Acceptable because the threshold
-  // (default 5) is conservative — one extra increment in a crash scenario
-  // does not meaningfully shift when the breaker trips.
+  // Idempotent against BullMQ retries: the worker writes the delivery
+  // row to `exhausted` BEFORE calling this, and the early-return guard
+  // at the top of processDelivery skips already-terminal deliveries on
+  // any retry. So a single delivery cannot increment this counter twice
+  // even under at-least-once semantics.
   const bumped = await prisma.destination.updateMany({
     where: { id: destinationId, enabled: true },
     data: { consecutiveFailures: { increment: 1 } },
