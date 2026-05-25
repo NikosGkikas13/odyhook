@@ -113,6 +113,14 @@ model Destination {
   // `X-Odyhook-Signature: v1=<hex>` + `X-Odyhook-Timestamp` so the downstream
   // receiver can verify it. Encrypted at rest like other secrets.
   outboundSecretEnc String?
+  // Circuit-breaker state. Incremented on every exhausted delivery,
+  // reset to 0 on every successful delivery, and used to flip `enabled`
+  // to false once it crosses DESTINATION_FAILURE_THRESHOLD (default 5).
+  consecutiveFailures Int       @default(0)
+  // Set when the breaker tripped (not when an operator pauses manually).
+  // Cleared by `toggleDestinationEnabled` on resume.
+  autoDisabledAt      DateTime?
+  autoDisabledReason  String?
   createdAt   DateTime @default(now())
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
