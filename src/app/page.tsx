@@ -24,7 +24,10 @@ async function getEventsLastHour(): Promise<number | null> {
 }
 
 export default async function Home() {
-  const [session, eventsLastHour] = await Promise.all([auth(), getEventsLastHour()]);
+  const [session, eventsLastHour] = await Promise.all([
+    auth(),
+    getEventsLastHour(),
+  ]);
   const signedIn = !!session?.user;
 
   return (
@@ -33,18 +36,20 @@ export default async function Home() {
         <div className="landing-hero-copy">
           <p className="landing-eyebrow">
             <Image
-              src="/c60f052d-1a1f-461a-9527-c782a250f441__1_-removebg-preview.png"
+              src="/odyhook.png"
               alt="Odyhook"
-              width={24}
-              height={24}
+              width={120}
+              height={120}
               priority
-              style={{ background: "white", borderRadius: 4, padding: 2 }}
+              style={{ background: "#fafafa", borderRadius: 4, padding: 2 }}
             />
-            <span className="landing-eyebrow-sep">/</span>
-            webhook proxy
+            {/* <span className="landing-eyebrow-sep">/</span>
+            webhook proxy */}
           </p>
           <h1 className="landing-h1">
-            Webhooks that don&rsquo;t<br />silently fail.
+            Webhooks that don&rsquo;t
+            <br />
+            silently fail.
           </h1>
           <p className="landing-lede">
             Ingest every event. Log it forever. Forward it anywhere. Retry on
@@ -65,8 +70,8 @@ export default async function Home() {
             <p className="landing-livecount">
               <span aria-hidden className="dot dot--delivered" />
               <span>
-                <strong>{eventsLastHour.toLocaleString()}</strong>{" "}
-                event{eventsLastHour === 1 ? "" : "s"} delivered in the last hour
+                <strong>{eventsLastHour.toLocaleString()}</strong> event
+                {eventsLastHour === 1 ? "" : "s"} delivered in the last hour
               </span>
             </p>
           )}
@@ -98,8 +103,8 @@ export default async function Home() {
           <p className="feature-eyebrow">03 / transform</p>
           <h3 className="feature-title">AI-compiled filters and rewrites</h3>
           <p className="feature-body">
-            Describe a filter or payload reshape in one sentence; it compiles
-            to JS that runs in a QuickJS sandbox before forwarding.
+            Describe a filter or payload reshape in one sentence; it compiles to
+            JS that runs in a QuickJS sandbox before forwarding.
           </p>
         </div>
       </section>
@@ -108,12 +113,13 @@ export default async function Home() {
         <div className="landing-snippet-head">
           <span>point a webhook at your source URL</span>
           <span className="snippet-status">
-            <span aria-hidden className="dot dot--delivered" /> received in &lt; 80ms
+            <span aria-hidden className="dot dot--delivered" /> received in &lt;
+            80ms
           </span>
         </div>
         <pre className="landing-snippet-pre">
           <code>
-{`$ curl https://odyhook.dev/api/ingest/src_8f2a91b3 \\
+            {`$ curl https://odyhook.dev/api/ingest/src_8f2a91b3 \\
     -H "stripe-signature: t=1738094412,v1=..." \\
     -H "content-type: application/json" \\
     -d @event.json
