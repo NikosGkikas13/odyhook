@@ -1,6 +1,7 @@
 import { sendMail } from "../mailer";
 import { decrypt, decryptJson } from "../crypto";
 import { composeEmail, composeSlackBlocks, composeWebhookPayload, type AlertContext } from "./compose";
+import { assertSafeUrl } from "../ssrf";
 
 const SLACK_TIMEOUT_MS = 10_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -15,6 +16,7 @@ export async function dispatchSlack(
   ctx: AlertContext,
 ): Promise<void> {
   const url = decrypt(webhookUrlEnc);
+  await assertSafeUrl(url);
   const body = composeSlackBlocks(ctx);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SLACK_TIMEOUT_MS);
@@ -40,6 +42,7 @@ export async function dispatchGenericWebhook(
   ctx: AlertContext,
 ): Promise<void> {
   const url = decrypt(urlEnc);
+  await assertSafeUrl(url);
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -47,6 +50,9 @@ export async function dispatchGenericWebhook(
     try {
       const decoded = decryptJson<Record<string, string>>(headersEnc);
       for (const [k, v] of Object.entries(decoded)) {
+        // The body is JSON.stringify'd below — don't let a user header
+        // claim content-type: application/xml and mis-tell the receiver.
+        if (k.toLowerCase() === "content-type") continue;
         headers[k] = v;
       }
     } catch (err) {
@@ -64,7 +70,8 @@ export async function dispatchGenericWebhook(
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new Error(`Webhook POST ${res.status}`);
+      const text = await res.text().catch(() => "");
+      throw new Error(`Webhook POST ${res.status}: ${text.slice(0, 200)}`);
     }
   } finally {
     clearTimeout(timer);
