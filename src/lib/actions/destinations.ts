@@ -120,9 +120,20 @@ export async function toggleDestinationEnabled(formData: FormData) {
     select: { enabled: true },
   });
   if (!existing) throw new Error("not found");
-  await prisma.destination.update({
-    where: { id },
-    data: { enabled: !existing.enabled },
-  });
+
+  const nextEnabled = !existing.enabled;
+  // Resuming a destination (false → true) clears the breaker state so it
+  // gets a fresh failure window. Pausing leaves the counter alone — an
+  // operator pause shouldn't pardon prior failures.
+  const data = nextEnabled
+    ? {
+        enabled: true,
+        consecutiveFailures: 0,
+        autoDisabledAt: null,
+        autoDisabledReason: null,
+      }
+    : { enabled: false };
+
+  await prisma.destination.update({ where: { id }, data });
   revalidatePath("/destinations");
 }

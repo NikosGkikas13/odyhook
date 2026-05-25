@@ -34,6 +34,9 @@ import {
   getDeliveryQueue,
   type DeliveryJob,
 } from "../lib/queue";
+import { recordSuccess, recordExhausted } from "../lib/circuit-breaker";
+import { composeDestinationDisabledEmail } from "../lib/emails/destination-disabled";
+import { sendMail } from "../lib/mailer";
 
 // Headers that should never be forwarded to the destination. Combines:
 //   1. Hop-by-hop / framing — re-derived per request by fetch().
@@ -285,6 +288,14 @@ async function processDelivery(job: Job<DeliveryJob>) {
       },
     });
     console.log(`[worker] delivered ${deliveryId} (${responseCode})`);
+    try {
+      await recordSuccess(delivery.destinationId);
+    } catch (err) {
+      console.error(
+        `[worker] failed to reset breaker counter for ${delivery.destinationId}:`,
+        err,
+      );
+    }
     return;
   }
 
@@ -304,6 +315,37 @@ async function processDelivery(job: Job<DeliveryJob>) {
     console.warn(
       `[worker] exhausted ${deliveryId}${terminal ? " (terminal)" : ` after ${attempt} attempts`}: ${errorMsg}`,
     );
+    try {
+      const result = await recordExhausted(delivery.destinationId, errorMsg);
+      if (result.tripped) {
+        console.warn(
+          `[worker] circuit breaker tripped for destination ${delivery.destinationId} — notifying owner`,
+        );
+        Sentry.captureMessage(
+          `circuit breaker tripped for destination ${delivery.destinationId}`,
+          "warning",
+        );
+        const msg = composeDestinationDisabledEmail({
+          destinationName: result.destinationName,
+          reason: errorMsg,
+          consecutiveFailures: result.consecutiveFailures,
+        });
+        // sendMail has no timeout configured (see src/lib/mailer.ts), so a
+        // hung SMTP relay can block this worker concurrency slot for the OS
+        // TCP default (~2min). Acceptable here — trips are rare — but
+        // worth revisiting if we ever wire alerts for noisier events.
+        await sendMail({
+          to: result.ownerEmail,
+          subject: msg.subject,
+          text: msg.text,
+        });
+      }
+    } catch (err) {
+      console.error(
+        `[worker] circuit-breaker bookkeeping failed for ${delivery.destinationId}:`,
+        err,
+      );
+    }
     return;
   }
 
