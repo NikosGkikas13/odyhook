@@ -25,6 +25,10 @@ export type DeliveryOutcomeInput = {
  * History reads are kept minimal: we only load the recent window when at
  * least one trigger that needs it is enabled. History is ordered newest-first
  * (createdAt desc); the pure trigger functions in ./triggers rely on that.
+ *
+ * Note: `failureRate` and `firstFailure` may fire repeatedly across a single
+ * delivery's retry chain (once per attempt). Cooldown deduplication happens
+ * at dispatch time in the alert worker, not here.
  */
 export async function maybeEnqueueAlerts(input: DeliveryOutcomeInput): Promise<void> {
   const dest = await prisma.destination.findUnique({
@@ -37,9 +41,23 @@ export async function maybeEnqueueAlerts(input: DeliveryOutcomeInput): Promise<v
   });
   if (!dest) return;
 
+  // Fast-path: most destinations have no alert config at all. Skip the Zod
+  // parse + merge + history lookup for the common case.
+  if (dest.alertConfigJson == null && dest.user.alertConfigJson == null) return;
+
   const userCfg = parseStoredConfig(dest.user.alertConfigJson);
   const destCfg = parseStoredConfig(dest.alertConfigJson);
   const cfg = mergeAlertConfigs(userCfg, destCfg);
+
+  // No point evaluating triggers if no channel is enabled — the alert worker
+  // would just no-op the job. Save the queue write.
+  const channels = cfg.channels ?? {};
+  const anyChannelOn =
+    !!channels.email?.enabled ||
+    !!channels.slack?.enabled ||
+    !!channels.webhook?.enabled;
+  if (!anyChannelOn) return;
+
   const triggers = cfg.triggers ?? {};
 
   // If nothing is on, skip the history read entirely.

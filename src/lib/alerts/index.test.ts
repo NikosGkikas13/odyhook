@@ -142,4 +142,32 @@ describe("maybeEnqueueAlerts", () => {
     });
     expect(__getAdds()).toEqual([]);
   });
+
+  it("no-ops when both user and destination configs are null", async () => {
+    const { source, dest } = await makeFixture({});
+    // Both user.alertConfigJson and dest.alertConfigJson default to null.
+    const delivery = await createDelivery(source.id, dest.id, "exhausted");
+    await maybeEnqueueAlerts({
+      destinationId: dest.id,
+      deliveryId: delivery.id,
+      outcomeStatus: "exhausted",
+    });
+    expect(__getAdds()).toEqual([]);
+  });
+
+  it("no-ops when triggers are enabled but no channels are", async () => {
+    const { source, dest } = await makeFixture({
+      userAlertConfig: {
+        channels: {},
+        triggers: { exhausted: { enabled: true } },
+      },
+    });
+    const delivery = await createDelivery(source.id, dest.id, "exhausted");
+    await maybeEnqueueAlerts({
+      destinationId: dest.id,
+      deliveryId: delivery.id,
+      outcomeStatus: "exhausted",
+    });
+    expect(__getAdds()).toEqual([]);
+  });
 });
