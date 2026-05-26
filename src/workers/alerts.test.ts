@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma";
 import { getConnection } from "../lib/queue";
 import { getAlertsQueue, ALERTS_QUEUE } from "../lib/alerts/queue";
 import { cooldownKey } from "../lib/alerts/cooldown";
-import { encrypt, encryptJson } from "../lib/crypto";
+import { encrypt } from "../lib/crypto";
 
 // Hoist mocks: dispatch is the I/O seam.
 vi.mock("../lib/alerts/dispatch", () => ({

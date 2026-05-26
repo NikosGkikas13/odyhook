@@ -114,7 +114,12 @@ export function startAlertWorker(): Worker<AlertJob> {
   _worker.on("error", (err) => console.error("[alerts-worker] error:", err));
   _worker.on("failed", (job, err) => {
     console.error(`[alerts-worker] job ${job?.id} failed:`, err);
-    if (job?.attemptsMade && job.attemptsMade >= 3) {
+    // Only capture to Sentry after the job has truly exhausted its retries.
+    // With `attempts: 4` in the queue, `attemptsMade` reaches 4 on the
+    // final failure — a transient blip that succeeds on attempt 3 should
+    // NOT page.
+    const maxAttempts = job?.opts?.attempts ?? 4;
+    if (job?.attemptsMade && job.attemptsMade >= maxAttempts) {
       Sentry.captureException(err, {
         tags: {
           destinationId: job.data.destinationId,
