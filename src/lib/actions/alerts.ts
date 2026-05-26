@@ -12,6 +12,12 @@ import {
   validateGenericWebhookUrl,
   type AlertConfig,
 } from "@/lib/alerts/schema";
+import { assertSafeUrl, SsrfError } from "@/lib/ssrf";
+
+// RFC 7230 token: same definition used in src/lib/actions/destinations.ts
+const HEADER_NAME_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+// Header value: visible ASCII + space/tab; no CR/LF (prevents header smuggling).
+const HEADER_VALUE_RE = /^[\t\x20-\x7E]*$/;
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -22,7 +28,7 @@ async function requireUserId(): Promise<string> {
 // FormData shape — strings only. The page sends each field as a separate
 // FormData entry; we assemble the AlertConfig here. Unchecked checkbox =
 // no entry in FormData, which we read as `false`.
-function parseFormToConfig(form: FormData, appUrl: string): AlertConfig {
+async function parseFormToConfig(form: FormData, appUrl: string): Promise<AlertConfig> {
   const cfg: AlertConfig = { channels: {}, triggers: {}, cooldownMinutes: 15 };
 
   // Email channel
@@ -39,6 +45,14 @@ function parseFormToConfig(form: FormData, appUrl: string): AlertConfig {
       throw new Error("Slack channel enabled but webhook URL is empty");
     }
     validateSlackWebhookUrl(slackUrl);
+    try {
+      await assertSafeUrl(slackUrl);
+    } catch (err) {
+      if (err instanceof SsrfError) {
+        throw new Error(`Slack webhook URL rejected: ${err.message}`);
+      }
+      throw err;
+    }
     cfg.channels!.slack = {
       enabled: slackOn,
       webhookUrlEnc: encrypt(slackUrl),
@@ -54,6 +68,14 @@ function parseFormToConfig(form: FormData, appUrl: string): AlertConfig {
       throw new Error("Webhook channel enabled but URL is empty");
     }
     validateGenericWebhookUrl(webhookUrl, appUrl);
+    try {
+      await assertSafeUrl(webhookUrl);
+    } catch (err) {
+      if (err instanceof SsrfError) {
+        throw new Error(`Webhook URL rejected: ${err.message}`);
+      }
+      throw err;
+    }
     let headersEnc: string | undefined;
     if (webhookHeaders) {
       let parsed: Record<string, string>;
@@ -75,6 +97,12 @@ function parseFormToConfig(form: FormData, appUrl: string): AlertConfig {
       for (const [k, v] of Object.entries(parsed)) {
         if (typeof v !== "string") {
           throw new Error(`Webhook header ${k} must be a string`);
+        }
+        if (!HEADER_NAME_RE.test(k)) {
+          throw new Error(`Invalid webhook header name: ${JSON.stringify(k)}`);
+        }
+        if (!HEADER_VALUE_RE.test(v)) {
+          throw new Error(`Invalid webhook header value for ${k} (control chars not allowed)`);
         }
       }
       headersEnc = encryptJson(parsed);
@@ -132,7 +160,7 @@ function parseFormToConfig(form: FormData, appUrl: string): AlertConfig {
 export async function saveUserAlerts(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const cfg = parseFormToConfig(formData, appUrl);
+  const cfg = await parseFormToConfig(formData, appUrl);
   await prisma.user.update({
     where: { id: userId },
     data: { alertConfigJson: cfg as never },
@@ -157,7 +185,7 @@ export async function saveDestinationAlerts(formData: FormData): Promise<void> {
     });
   } else {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const cfg = parseFormToConfig(formData, appUrl);
+    const cfg = await parseFormToConfig(formData, appUrl);
     await prisma.destination.update({
       where: { id: destinationId },
       data: { alertConfigJson: cfg as never },
@@ -172,10 +200,11 @@ type TestChannel = (typeof TEST_CHANNELS)[number];
 
 export async function sendTestAlert(formData: FormData): Promise<void> {
   const userId = await requireUserId();
-  const channel = String(formData.get("channel") ?? "") as TestChannel;
-  if (!TEST_CHANNELS.includes(channel)) {
-    throw new Error(`unknown test channel: ${channel}`);
+  const channelRaw = String(formData.get("channel") ?? "");
+  if (!TEST_CHANNELS.includes(channelRaw as TestChannel)) {
+    throw new Error(`unknown test channel: ${channelRaw}`);
   }
+  const channel = channelRaw as TestChannel;
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { email: true, alertConfigJson: true },
