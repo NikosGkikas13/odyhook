@@ -37,6 +37,7 @@ import {
 import { recordSuccess, recordExhausted } from "../lib/circuit-breaker";
 import { composeDestinationDisabledEmail } from "../lib/emails/destination-disabled";
 import { sendMail } from "../lib/mailer";
+import { startAlertWorker, stopAlertWorker } from "./alerts";
 
 // Headers that should never be forwarded to the destination. Combines:
 //   1. Hop-by-hop / framing — re-derived per request by fetch().
@@ -387,6 +388,11 @@ worker.on("failed", (job, err) => {
   console.error(`[worker] job ${job?.id} failed:`, err);
 });
 
+const alertWorker = startAlertWorker();
+// startAlertWorker already attaches its own ready/error/failed listeners.
+// Hold the reference so shutdown can close it cleanly.
+void alertWorker;
+
 // Reaper: re-enqueue deliveries that have been stuck in `pending` for
 // too long. Covers the gap between `prisma.event.create` and
 // `queue.add` in the ingest handler — if the enqueue fails (Redis
@@ -442,6 +448,7 @@ reaperTimer.unref?.();
 async function shutdown() {
   console.log("[worker] shutting down...");
   clearInterval(reaperTimer);
+  await stopAlertWorker();
   await worker.close();
   await getDeliveryQueue().close();
   await getConnection().quit();
