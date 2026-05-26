@@ -61,6 +61,15 @@ export default async function AlertsSettingsPage() {
               Enabled
             </label>
           </div>
+          {cfg.channels?.slack?.webhookUrlEnc ? (
+            <p className="mt-2 text-xs text-emerald-600">
+              ✓ URL saved. Leave the field below blank to keep it; type a new URL to replace it.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-amber-600">
+              No URL configured.
+            </p>
+          )}
           <label className="mt-3 flex flex-col gap-1 text-sm">
             <span className="text-zinc-600 dark:text-zinc-400">Webhook URL</span>
             <input
@@ -70,9 +79,6 @@ export default async function AlertsSettingsPage() {
               className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
             />
           </label>
-          <p className="mt-2 text-xs text-zinc-500">
-            URL is stored encrypted and never shown again. Re-enter it to update.
-          </p>
         </section>
 
         {/* Generic webhook */}
@@ -88,6 +94,15 @@ export default async function AlertsSettingsPage() {
               Enabled
             </label>
           </div>
+          {cfg.channels?.webhook?.urlEnc ? (
+            <p className="mt-2 text-xs text-emerald-600">
+              ✓ URL saved. Leave blank to keep the existing URL and headers.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-amber-600">
+              No URL configured.
+            </p>
+          )}
           <label className="mt-3 flex flex-col gap-1 text-sm">
             <span className="text-zinc-600 dark:text-zinc-400">URL (https only)</span>
             <input
@@ -141,6 +156,7 @@ export default async function AlertsSettingsPage() {
               min={1}
               max={100}
               defaultValue={cfg.triggers?.failureRate?.ratePct ?? 50}
+              aria-label="Failure rate threshold (percent)"
               className="h-8 w-20 rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
             <span>% of the last</span>
@@ -150,6 +166,7 @@ export default async function AlertsSettingsPage() {
               min={2}
               max={200}
               defaultValue={cfg.triggers?.failureRate?.windowCount ?? 20}
+              aria-label="Window size (recent deliveries to evaluate)"
               className="h-8 w-24 rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
             <span>deliveries failed.</span>
@@ -171,6 +188,7 @@ export default async function AlertsSettingsPage() {
               min={1}
               max={50}
               defaultValue={cfg.triggers?.firstFailure?.afterSuccessCount ?? 5}
+              aria-label="Number of consecutive successes before re-arming first-failure alerts"
               className="h-8 w-20 rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             />
             <span>consecutive successes.</span>

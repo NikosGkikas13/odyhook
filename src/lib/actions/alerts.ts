@@ -12,6 +12,7 @@ import {
   validateGenericWebhookUrl,
   type AlertConfig,
 } from "@/lib/alerts/schema";
+import { parseStoredConfig } from "@/lib/alerts/config";
 import { assertSafeUrl, SsrfError } from "@/lib/ssrf";
 
 // RFC 7230 token: same definition used in src/lib/actions/destinations.ts
@@ -28,7 +29,11 @@ async function requireUserId(): Promise<string> {
 // FormData shape — strings only. The page sends each field as a separate
 // FormData entry; we assemble the AlertConfig here. Unchecked checkbox =
 // no entry in FormData, which we read as `false`.
-async function parseFormToConfig(form: FormData, appUrl: string): Promise<AlertConfig> {
+async function parseFormToConfig(
+  form: FormData,
+  appUrl: string,
+  existing: AlertConfig | null,
+): Promise<AlertConfig> {
   const cfg: AlertConfig = { channels: {}, triggers: {}, cooldownMinutes: 15 };
 
   // Email channel
@@ -40,41 +45,54 @@ async function parseFormToConfig(form: FormData, appUrl: string): Promise<AlertC
   // Slack channel
   const slackOn = form.get("channel.slack.enabled") === "on";
   const slackUrl = String(form.get("channel.slack.url") ?? "").trim();
+  const existingSlackUrlEnc = existing?.channels?.slack?.webhookUrlEnc;
   if (slackOn || slackUrl) {
-    if (!slackUrl) {
+    if (slackUrl) {
+      // User provided a new URL — validate and encrypt it.
+      validateSlackWebhookUrl(slackUrl);
+      try {
+        await assertSafeUrl(slackUrl);
+      } catch (err) {
+        if (err instanceof SsrfError) {
+          throw new Error(`Slack webhook URL rejected: ${err.message}`);
+        }
+        throw err;
+      }
+      cfg.channels!.slack = {
+        enabled: slackOn,
+        webhookUrlEnc: encrypt(slackUrl),
+      };
+    } else if (existingSlackUrlEnc) {
+      // No new URL but a saved one exists — keep the existing encrypted URL.
+      cfg.channels!.slack = {
+        enabled: slackOn,
+        webhookUrlEnc: existingSlackUrlEnc,
+      };
+    } else {
       throw new Error("Slack channel enabled but webhook URL is empty");
     }
-    validateSlackWebhookUrl(slackUrl);
-    try {
-      await assertSafeUrl(slackUrl);
-    } catch (err) {
-      if (err instanceof SsrfError) {
-        throw new Error(`Slack webhook URL rejected: ${err.message}`);
-      }
-      throw err;
-    }
-    cfg.channels!.slack = {
-      enabled: slackOn,
-      webhookUrlEnc: encrypt(slackUrl),
-    };
   }
 
   // Generic webhook channel
   const webhookOn = form.get("channel.webhook.enabled") === "on";
   const webhookUrl = String(form.get("channel.webhook.url") ?? "").trim();
   const webhookHeaders = String(form.get("channel.webhook.headers") ?? "").trim();
-  if (webhookOn || webhookUrl) {
-    if (!webhookUrl) {
+  const existingWebhookUrlEnc = existing?.channels?.webhook?.urlEnc;
+  const existingWebhookHeadersEnc = existing?.channels?.webhook?.headersEnc;
+  if (webhookOn || webhookUrl || webhookHeaders) {
+    if (!webhookUrl && !existingWebhookUrlEnc) {
       throw new Error("Webhook channel enabled but URL is empty");
     }
-    validateGenericWebhookUrl(webhookUrl, appUrl);
-    try {
-      await assertSafeUrl(webhookUrl);
-    } catch (err) {
-      if (err instanceof SsrfError) {
-        throw new Error(`Webhook URL rejected: ${err.message}`);
+    if (webhookUrl) {
+      validateGenericWebhookUrl(webhookUrl, appUrl);
+      try {
+        await assertSafeUrl(webhookUrl);
+      } catch (err) {
+        if (err instanceof SsrfError) {
+          throw new Error(`Webhook URL rejected: ${err.message}`);
+        }
+        throw err;
       }
-      throw err;
     }
     let headersEnc: string | undefined;
     if (webhookHeaders) {
@@ -106,10 +124,13 @@ async function parseFormToConfig(form: FormData, appUrl: string): Promise<AlertC
         }
       }
       headersEnc = encryptJson(parsed);
+    } else if (existingWebhookHeadersEnc) {
+      // No new headers provided but a saved set exists — keep them.
+      headersEnc = existingWebhookHeadersEnc;
     }
     cfg.channels!.webhook = {
       enabled: webhookOn,
-      urlEnc: encrypt(webhookUrl),
+      urlEnc: webhookUrl ? encrypt(webhookUrl) : existingWebhookUrlEnc!,
       ...(headersEnc ? { headersEnc } : {}),
     };
   }
@@ -160,7 +181,12 @@ async function parseFormToConfig(form: FormData, appUrl: string): Promise<AlertC
 export async function saveUserAlerts(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const cfg = await parseFormToConfig(formData, appUrl);
+  const existingUser = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { alertConfigJson: true },
+  });
+  const existing = parseStoredConfig(existingUser.alertConfigJson);
+  const cfg = await parseFormToConfig(formData, appUrl, existing);
   await prisma.user.update({
     where: { id: userId },
     data: { alertConfigJson: cfg as never },
@@ -185,7 +211,12 @@ export async function saveDestinationAlerts(formData: FormData): Promise<void> {
     });
   } else {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-    const cfg = await parseFormToConfig(formData, appUrl);
+    const existingDest = await prisma.destination.findFirstOrThrow({
+      where: { id: destinationId, userId },
+      select: { alertConfigJson: true },
+    });
+    const existing = parseStoredConfig(existingDest.alertConfigJson);
+    const cfg = await parseFormToConfig(formData, appUrl, existing);
     await prisma.destination.update({
       where: { id: destinationId },
       data: { alertConfigJson: cfg as never },
