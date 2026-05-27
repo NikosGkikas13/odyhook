@@ -64,8 +64,8 @@ describe("getThroughput", () => {
       const rows = await getThroughput({ userId: u.id, since: "1h" });
       const total = rows.reduce((acc, r) => acc + r.count, 0);
       expect(total).toBe(3);
-      // 1h window @ 1-min buckets = 60 rows, all present (zero-filled).
-      expect(rows).toHaveLength(60);
+      // 1h window @ 1-min buckets = 60 closed buckets + 1 in-progress = 61.
+      expect(rows).toHaveLength(61);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }
@@ -83,6 +83,38 @@ describe("getThroughput", () => {
       const rowsA = await getThroughput({ userId: u.id, since: "1h", sourceId: a.id });
       const totalA = rowsA.reduce((acc, r) => acc + r.count, 0);
       expect(totalA).toBe(1);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("scopes to a single destination when destinationId is provided", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const da = await prisma.destination.create({
+        data: { userId: u.id, name: "A", url: "https://a.test/" },
+      });
+      const db = await prisma.destination.create({
+        data: { userId: u.id, name: "B", url: "https://b.test/" },
+      });
+      const now = new Date();
+      const e1 = await makeEvent(s.id, new Date(now.getTime() - 5 * 60_000));
+      const e2 = await makeEvent(s.id, new Date(now.getTime() - 6 * 60_000));
+      const e3 = await makeEvent(s.id, new Date(now.getTime() - 7 * 60_000));
+      // e1 + e2 go to destination A; e3 goes to destination B only.
+      await prisma.delivery.createMany({
+        data: [
+          { eventId: e1.id, destinationId: da.id, status: "delivered" },
+          { eventId: e2.id, destinationId: da.id, status: "delivered" },
+          { eventId: e3.id, destinationId: db.id, status: "delivered" },
+        ],
+      });
+
+      const rowsA = await getThroughput({ userId: u.id, since: "1h", destinationId: da.id });
+      expect(rowsA.reduce((acc, r) => acc + r.count, 0)).toBe(2);
+      const rowsB = await getThroughput({ userId: u.id, since: "1h", destinationId: db.id });
+      expect(rowsB.reduce((acc, r) => acc + r.count, 0)).toBe(1);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }

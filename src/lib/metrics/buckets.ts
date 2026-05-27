@@ -43,12 +43,14 @@ export function zeroFill<T>(
 ): Array<{ bucket: Date } & T> {
   const size = bucketSizeMs(spec);
   const first = floorToBucket(start, spec).getTime();
+  // Include the current in-progress bucket (`end` is "now"). Without `<=`
+  // the partial bucket would silently drop the most recent events.
   const last = floorToBucket(end, spec).getTime();
   const byMs = new Map<number, { bucket: Date } & T>();
   for (const r of rows) byMs.set(r.bucket.getTime(), r);
 
   const out: Array<{ bucket: Date } & T> = [];
-  for (let t = first; t < last; t += size) {
+  for (let t = first; t <= last; t += size) {
     const found = byMs.get(t);
     if (found) out.push(found);
     else out.push({ bucket: new Date(t), ...empty });

@@ -46,15 +46,26 @@ export async function getThroughput(
   const sourceFilter = p.sourceId
     ? Prisma.sql`AND e."sourceId" = ${p.sourceId}`
     : Prisma.empty;
+  // When scoping to a destination we count Delivery rows for that
+  // destination (one row per Event×destination), which represents events
+  // that were actually forwarded there.
+  const destJoin = p.destinationId
+    ? Prisma.sql`JOIN "Delivery" d ON d."eventId" = e.id`
+    : Prisma.empty;
+  const destFilter = p.destinationId
+    ? Prisma.sql`AND d."destinationId" = ${p.destinationId}`
+    : Prisma.empty;
 
   const rows = await prisma.$queryRaw<Array<{ bucket: Date; count: bigint }>>(
     Prisma.sql`
       SELECT ${trunc} AS bucket, count(*)::bigint AS count
       FROM "Event" e
       JOIN "Source" s ON s.id = e."sourceId"
+      ${destJoin}
       WHERE s."userId" = ${p.userId}
         AND e."receivedAt" >= ${start}
         ${sourceFilter}
+        ${destFilter}
       GROUP BY 1
       ORDER BY 1
     `,

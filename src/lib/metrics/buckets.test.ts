@@ -48,7 +48,7 @@ describe("zeroFill", () => {
   const start = new Date("2026-05-27T11:00:00Z");
   const end = new Date("2026-05-27T12:00:00Z");
 
-  it("fills empty buckets with the default value", () => {
+  it("fills empty buckets, inclusive of the current in-progress bucket", () => {
     const result = zeroFill<{ count: number }>(
       [],
       start,
@@ -56,10 +56,12 @@ describe("zeroFill", () => {
       spec,
       { count: 0 },
     );
-    expect(result).toHaveLength(4); // 11:00, 11:15, 11:30, 11:45
+    // 11:00, 11:15, 11:30, 11:45, 12:00 — the trailing 12:00 bucket is the
+    // current-in-progress one and is included so live events still show up.
+    expect(result).toHaveLength(5);
     expect(result.every((r) => r.count === 0)).toBe(true);
     expect(result[0].bucket).toEqual(new Date("2026-05-27T11:00:00Z"));
-    expect(result[3].bucket).toEqual(new Date("2026-05-27T11:45:00Z"));
+    expect(result[4].bucket).toEqual(new Date("2026-05-27T12:00:00Z"));
   });
 
   it("preserves provided rows and fills gaps around them", () => {
@@ -70,11 +72,12 @@ describe("zeroFill", () => {
       spec,
       { count: 0 },
     );
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(5);
     expect(result[0].count).toBe(0);
     expect(result[1].count).toBe(42);
     expect(result[2].count).toBe(0);
     expect(result[3].count).toBe(0);
+    expect(result[4].count).toBe(0);
   });
 
   it("aligns the first bucket to the granularity floor", () => {
