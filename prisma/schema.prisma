@@ -19,6 +19,10 @@ model User {
   emailVerified DateTime?
   image         String?
   createdAt     DateTime  @default(now())
+  // Account-wide alert defaults. Nullable = no defaults configured.
+  // Per-destination overrides on Destination.alertConfigJson shallow-merge
+  // on top of this. See src/lib/alerts/schema.ts for the shape.
+  alertConfigJson Json?
 
   accounts     Account[]
   sessions     Session[]
@@ -121,6 +125,10 @@ model Destination {
   // Cleared by `toggleDestinationEnabled` on resume.
   autoDisabledAt      DateTime?
   autoDisabledReason  String?
+  // Per-destination alert override. Partial shape — keys present here win
+  // over User.alertConfigJson during effective-config resolution. Null =
+  // inherit user defaults entirely. See src/lib/alerts/schema.ts.
+  alertConfigJson     Json?
   createdAt   DateTime @default(now())
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
