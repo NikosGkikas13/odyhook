@@ -1,8 +1,10 @@
 import "dotenv/config";
 import { describe, it, expect } from "vitest";
 
+import { DeliveryStatus } from "@/generated/prisma/enums";
+
 import { prisma } from "../prisma";
-import { getThroughput } from "./queries";
+import { getSuccessRate, getThroughput } from "./queries";
 
 async function makeUser() {
   return prisma.user.create({
@@ -29,6 +31,22 @@ async function makeEvent(sourceId: string, receivedAt: Date) {
       bodyRaw: "{}",
       receivedAt,
     },
+  });
+}
+
+async function makeDestination(userId: string, name = "dest") {
+  return prisma.destination.create({
+    data: { userId, name, url: "https://example.test/" },
+  });
+}
+
+async function makeDelivery(
+  eventId: string,
+  destinationId: string,
+  status: DeliveryStatus,
+) {
+  return prisma.delivery.create({
+    data: { eventId, destinationId, status, attemptCount: 1 },
   });
 }
 
@@ -82,6 +100,65 @@ describe("getThroughput", () => {
     } finally {
       await prisma.user.delete({ where: { id: u1.id } });
       await prisma.user.delete({ where: { id: u2.id } });
+    }
+  });
+});
+
+describe("getSuccessRate", () => {
+  it("returns delivered and failed counts per bucket", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const now = new Date();
+      const e1 = await makeEvent(s.id, new Date(now.getTime() - 5 * 60_000));
+      const e2 = await makeEvent(s.id, new Date(now.getTime() - 6 * 60_000));
+      const e3 = await makeEvent(s.id, new Date(now.getTime() - 7 * 60_000));
+      await makeDelivery(e1.id, d.id, "delivered");
+      await makeDelivery(e2.id, d.id, "delivered");
+      await makeDelivery(e3.id, d.id, "failed");
+
+      const rows = await getSuccessRate({ userId: u.id, since: "1h" });
+      const totalDelivered = rows.reduce((acc, r) => acc + r.delivered, 0);
+      const totalFailed = rows.reduce((acc, r) => acc + r.failed, 0);
+      expect(totalDelivered).toBe(2);
+      expect(totalFailed).toBe(1);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("counts exhausted as failed", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const e = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
+      await makeDelivery(e.id, d.id, "exhausted");
+
+      const rows = await getSuccessRate({ userId: u.id, since: "1h" });
+      const totalFailed = rows.reduce((acc, r) => acc + r.failed, 0);
+      expect(totalFailed).toBe(1);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("excludes 'pending' and 'in_flight' deliveries (terminal-status only)", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const e1 = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
+      const e2 = await makeEvent(s.id, new Date(Date.now() - 6 * 60_000));
+      await makeDelivery(e1.id, d.id, "pending");
+      await makeDelivery(e2.id, d.id, "in_flight");
+
+      const rows = await getSuccessRate({ userId: u.id, since: "1h" });
+      const total = rows.reduce((acc, r) => acc + r.delivered + r.failed, 0);
+      expect(total).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
     }
   });
 });

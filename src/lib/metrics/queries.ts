@@ -68,3 +68,62 @@ export async function getThroughput(
     { count: 0 },
   );
 }
+
+export interface SuccessRateRow {
+  bucket: Date;
+  delivered: number;
+  failed: number;
+}
+
+export async function getSuccessRate(
+  p: MetricsQueryParams,
+): Promise<SuccessRateRow[]> {
+  const spec = granularityFor(p.since);
+  const start = windowStart(p.since);
+  const end = new Date();
+  // For the success-rate query the bucket dimension is the event's
+  // receivedAt — delivered/failed are computed via FILTER on Delivery.
+  const trunc = truncSqlFor(spec.granularity, spec.multiple);
+
+  const sourceFilter = p.sourceId
+    ? Prisma.sql`AND e."sourceId" = ${p.sourceId}`
+    : Prisma.empty;
+  const destFilter = p.destinationId
+    ? Prisma.sql`AND d."destinationId" = ${p.destinationId}`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<Array<{
+    bucket: Date;
+    delivered: bigint;
+    failed: bigint;
+  }>>(
+    Prisma.sql`
+      SELECT
+        ${trunc} AS bucket,
+        COUNT(*) FILTER (WHERE d.status = 'delivered')::bigint AS delivered,
+        COUNT(*) FILTER (WHERE d.status IN ('failed','exhausted'))::bigint AS failed
+      FROM "Delivery" d
+      JOIN "Event" e ON e.id = d."eventId"
+      JOIN "Source" s ON s.id = e."sourceId"
+      WHERE s."userId" = ${p.userId}
+        AND e."receivedAt" >= ${start}
+        AND d.status IN ('delivered','failed','exhausted')
+        ${sourceFilter}
+        ${destFilter}
+      GROUP BY 1
+      ORDER BY 1
+    `,
+  );
+
+  return zeroFill<{ delivered: number; failed: number }>(
+    rows.map((r) => ({
+      bucket: r.bucket,
+      delivered: Number(r.delivered),
+      failed: Number(r.failed),
+    })),
+    start,
+    end,
+    spec,
+    { delivered: 0, failed: 0 },
+  );
+}
