@@ -55,7 +55,7 @@ async function SignInForm({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   const { error, callbackUrl } = await searchParams;
-  const redirectTo = callbackUrl ?? "/sources";
+  const redirectTo = callbackUrl ?? "/overview";
   return (
     <div className="mt-6 space-y-4">
       <form
