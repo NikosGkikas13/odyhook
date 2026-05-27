@@ -9,6 +9,7 @@ const NAV = [
   { href: "/destinations", label: "Destinations" },
   { href: "/routes", label: "Routes" },
   { href: "/settings/api-keys", label: "Settings" },
+  { href: "/settings/alerts", label: "Alerts" },
 ];
 
 export function NavLinks() {
