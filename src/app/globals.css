@@ -69,6 +69,8 @@
      a brighter blue in dark. Use for UI accents (active nav, wordmark hook,
      toggle flash). Don't use where the literal brand color matters. */
   --brand-blue-fg: var(--brand-blue);
+  --chart-grid: var(--zinc-200);
+  --chart-line: var(--brand-blue);
 
   --bg-row-hover: color-mix(in oklch, var(--zinc-50) 50%, transparent);
 
@@ -113,6 +115,8 @@
 
   /* Brand-blue as a visible UI accent on dark surfaces. */
   --brand-blue-fg: #5B8DEF;
+  --chart-grid: var(--zinc-800);
+  --chart-line: #5B8DEF;
 
   /* Lift in_flight so the pulse animation is visible on zinc-950. */
   --status-in-flight: #5B8DEF;

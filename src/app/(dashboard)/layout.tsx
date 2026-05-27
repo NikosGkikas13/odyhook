@@ -17,7 +17,7 @@ export default async function DashboardLayout({
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
         <div className="mx-auto max-w-7xl px-3 sm:px-6">
           <div className="flex h-14 items-center gap-3 sm:gap-6">
-            <Link href="/sources" className="flex shrink-0 items-center gap-2">
+            <Link href="/overview" className="flex shrink-0 items-center gap-2">
               <Image
                 src="/c60f052d-1a1f-461a-9527-c782a250f441__1_-removebg-preview.png"
                 style={{

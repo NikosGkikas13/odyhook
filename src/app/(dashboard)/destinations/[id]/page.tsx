@@ -4,17 +4,38 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { parseStoredConfig, mergeAlertConfigs } from "@/lib/alerts/config";
 import { saveDestinationAlerts } from "@/lib/actions/alerts";
+import {
+  getLatency,
+  getSuccessRate,
+  getThroughput,
+} from "@/lib/metrics/queries";
+import { DEFAULT_SINCE, SINCE_VALUES, type SinceWindow } from "@/lib/metrics/types";
 
-export const dynamic = "force-dynamic";
+import { ChartCard } from "@/components/metrics/chart-card";
+import { LatencyChart } from "@/components/metrics/latency-chart";
+import { RefreshButton } from "@/components/metrics/refresh-button";
+import { SuccessRateChart } from "@/components/metrics/success-rate-chart";
+import { ThroughputChart } from "@/components/metrics/throughput-chart";
+import { TimeWindowSelector } from "@/components/metrics/time-window-selector";
+
+export const revalidate = 60;
 
 export default async function DestinationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ since?: string }>;
 }) {
   const { id } = await params;
   const session = await auth();
   if (!session?.user?.id) return null;
+
+  const { since: rawSince } = await searchParams;
+  const since: SinceWindow =
+    rawSince && SINCE_VALUES.has(rawSince as SinceWindow)
+      ? (rawSince as SinceWindow)
+      : DEFAULT_SINCE;
 
   const dest = await prisma.destination.findFirst({
     where: { id, userId: session.user.id },
@@ -29,13 +50,19 @@ export default async function DestinationDetailPage({
   });
   if (!dest) notFound();
 
+  const [throughput, successRate, latency] = await Promise.all([
+    getThroughput({ userId: session.user.id, since, destinationId: id }),
+    getSuccessRate({ userId: session.user.id, since, destinationId: id }),
+    getLatency({ userId: session.user.id, since, destinationId: id }),
+  ]);
+
   const userCfg = parseStoredConfig(dest.user.alertConfigJson);
   const destCfg = parseStoredConfig(dest.alertConfigJson);
   const usingDefaults = destCfg === null;
   const effective = mergeAlertConfigs(userCfg, destCfg);
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
       <div>
         <Link
           href="/destinations"
@@ -47,7 +74,25 @@ export default async function DestinationDetailPage({
         <p className="mt-1 font-mono text-xs text-zinc-500">{dest.url}</p>
       </div>
 
-      <form action={saveDestinationAlerts} className="space-y-6">
+      <section className="space-y-4">
+        <div className="flex items-center justify-end gap-2">
+          <TimeWindowSelector basePath={`/destinations/${dest.id}`} active={since} />
+          <RefreshButton />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ChartCard title="Throughput" subtitle="Events forwarded to this destination">
+            <ThroughputChart data={throughput} />
+          </ChartCard>
+          <ChartCard title="Success rate" subtitle="Delivered ÷ (delivered + failed)">
+            <SuccessRateChart data={successRate} />
+          </ChartCard>
+          <ChartCard title="Delivery latency" subtitle="p50 (solid) / p95 (dashed)">
+            <LatencyChart data={latency} />
+          </ChartCard>
+        </div>
+      </section>
+
+      <form action={saveDestinationAlerts} className="max-w-3xl space-y-6">
         <input type="hidden" name="destinationId" value={dest.id} />
 
         <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
