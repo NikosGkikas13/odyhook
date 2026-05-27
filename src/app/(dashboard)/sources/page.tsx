@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { createSource, deleteSource } from "@/lib/actions/sources";
@@ -107,7 +109,14 @@ export default async function SourcesPage() {
                       key={s.id}
                       className="border-b border-zinc-100 dark:border-zinc-800"
                     >
-                      <td className="px-4 py-3 font-medium">{s.name}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <Link
+                          href={`/sources/${s.id}`}
+                          className="text-zinc-900 hover:underline dark:text-zinc-100"
+                        >
+                          {s.name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">
                         <code className="break-all font-mono text-xs text-zinc-600 dark:text-zinc-400">
                           {url}
