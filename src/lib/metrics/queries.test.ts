@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { DeliveryStatus } from "@/generated/prisma/enums";
 
 import { prisma } from "../prisma";
-import { getSuccessRate, getThroughput } from "./queries";
+import { getLatency, getSuccessRate, getThroughput } from "./queries";
 
 async function makeUser() {
   return prisma.user.create({
@@ -157,6 +157,56 @@ describe("getSuccessRate", () => {
       const rows = await getSuccessRate({ userId: u.id, since: "1h" });
       const total = rows.reduce((acc, r) => acc + r.delivered + r.failed, 0);
       expect(total).toBe(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+});
+
+describe("getLatency", () => {
+  it("returns p50/p95 in ms for delivered events", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const now = new Date();
+      const recv = new Date(now.getTime() - 5 * 60_000); // 5 minutes ago
+      const e1 = await makeEvent(s.id, recv);
+      const e2 = await makeEvent(s.id, recv);
+      const e3 = await makeEvent(s.id, recv);
+      // Latencies: 100ms, 200ms, 1000ms -> p50=200, p95~~960 (Postgres
+      // percentile_cont interpolates; we just check approximate ordering).
+      await prisma.delivery.createMany({
+        data: [
+          { eventId: e1.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 100) },
+          { eventId: e2.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 200) },
+          { eventId: e3.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 1000) },
+        ],
+      });
+
+      const rows = await getLatency({ userId: u.id, since: "1h" });
+      const withData = rows.filter((r) => r.p50 !== null);
+      expect(withData).toHaveLength(1);
+      expect(withData[0].p50).toBeGreaterThanOrEqual(100);
+      expect(withData[0].p50).toBeLessThanOrEqual(300);
+      expect(withData[0].p95).toBeGreaterThanOrEqual(withData[0].p50!);
+      expect(withData[0].p95).toBeLessThanOrEqual(1000);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("excludes deliveries that aren't 'delivered'", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const e = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
+      await makeDelivery(e.id, d.id, "failed");
+
+      const rows = await getLatency({ userId: u.id, since: "1h" });
+      const withData = rows.filter((r) => r.p50 !== null);
+      expect(withData).toHaveLength(0);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }

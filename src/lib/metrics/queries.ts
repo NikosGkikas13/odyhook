@@ -127,3 +127,65 @@ export async function getSuccessRate(
     { delivered: 0, failed: 0 },
   );
 }
+
+export interface LatencyRow {
+  bucket: Date;
+  p50: number | null;
+  p95: number | null;
+}
+
+export async function getLatency(
+  p: MetricsQueryParams,
+): Promise<LatencyRow[]> {
+  const spec = granularityFor(p.since);
+  const start = windowStart(p.since);
+  const end = new Date();
+  const trunc = truncSqlFor(spec.granularity, spec.multiple);
+
+  const sourceFilter = p.sourceId
+    ? Prisma.sql`AND e."sourceId" = ${p.sourceId}`
+    : Prisma.empty;
+  const destFilter = p.destinationId
+    ? Prisma.sql`AND d."destinationId" = ${p.destinationId}`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw<Array<{
+    bucket: Date;
+    p50: number | null;
+    p95: number | null;
+  }>>(
+    Prisma.sql`
+      SELECT
+        ${trunc} AS bucket,
+        percentile_cont(0.5) WITHIN GROUP (
+          ORDER BY EXTRACT(epoch FROM (d."deliveredAt" - e."receivedAt")) * 1000
+        ) AS p50,
+        percentile_cont(0.95) WITHIN GROUP (
+          ORDER BY EXTRACT(epoch FROM (d."deliveredAt" - e."receivedAt")) * 1000
+        ) AS p95
+      FROM "Delivery" d
+      JOIN "Event" e ON e.id = d."eventId"
+      JOIN "Source" s ON s.id = e."sourceId"
+      WHERE s."userId" = ${p.userId}
+        AND e."receivedAt" >= ${start}
+        AND d.status = 'delivered'
+        AND d."deliveredAt" IS NOT NULL
+        ${sourceFilter}
+        ${destFilter}
+      GROUP BY 1
+      ORDER BY 1
+    `,
+  );
+
+  return zeroFill<{ p50: number | null; p95: number | null }>(
+    rows.map((r) => ({
+      bucket: r.bucket,
+      p50: r.p50 === null ? null : Number(r.p50),
+      p95: r.p95 === null ? null : Number(r.p95),
+    })),
+    start,
+    end,
+    spec,
+    { p50: null, p95: null },
+  );
+}
