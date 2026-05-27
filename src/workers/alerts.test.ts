@@ -3,7 +3,7 @@ import "dotenv/config";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../lib/prisma";
 import { getConnection } from "../lib/queue";
-import { getAlertsQueue, ALERTS_QUEUE } from "../lib/alerts/queue";
+import { getAlertsQueue } from "../lib/alerts/queue";
 import { cooldownKey } from "../lib/alerts/cooldown";
 import { encrypt } from "../lib/crypto";
 
