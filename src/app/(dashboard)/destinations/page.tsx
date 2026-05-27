@@ -5,6 +5,7 @@ import {
   deleteDestination,
   toggleDestinationEnabled,
 } from "@/lib/actions/destinations";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -180,6 +181,12 @@ export default async function DestinationsPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-3">
+                        <Link
+                          href={`/destinations/${d.id}`}
+                          className="text-xs text-zinc-600 hover:underline dark:text-zinc-300"
+                        >
+                          Edit alerts
+                        </Link>
                         <form action={toggleDestinationEnabled}>
                           <input type="hidden" name="id" value={d.id} />
                           <button
