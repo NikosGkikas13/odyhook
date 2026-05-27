@@ -240,3 +240,73 @@ export async function getTopFailing(
     lastFailure: r.lastFailure,
   }));
 }
+
+export interface OverviewTotals {
+  totalEvents: number;
+  activeSources: number;
+  successRate: number | null; // 0..100, or null when no terminal deliveries
+  p95LatencyMs: number | null;
+}
+
+export async function getOverviewTotals(
+  p: MetricsQueryParams,
+): Promise<OverviewTotals> {
+  const start = windowStart(p.since);
+
+  // Four independent aggregates, parallelized.
+  const [eventTotals, deliveryTotals, latency] = await Promise.all([
+    prisma.$queryRaw<Array<{ events: bigint; sources: bigint }>>(
+      Prisma.sql`
+        SELECT
+          COUNT(*)::bigint AS events,
+          COUNT(DISTINCT e."sourceId")::bigint AS sources
+        FROM "Event" e
+        JOIN "Source" s ON s.id = e."sourceId"
+        WHERE s."userId" = ${p.userId}
+          AND e."receivedAt" >= ${start}
+      `,
+    ),
+    prisma.$queryRaw<Array<{ delivered: bigint; failed: bigint }>>(
+      Prisma.sql`
+        SELECT
+          COUNT(*) FILTER (WHERE d.status = 'delivered')::bigint AS delivered,
+          COUNT(*) FILTER (WHERE d.status IN ('failed','exhausted'))::bigint AS failed
+        FROM "Delivery" d
+        JOIN "Event" e ON e.id = d."eventId"
+        JOIN "Source" s ON s.id = e."sourceId"
+        WHERE s."userId" = ${p.userId}
+          AND e."receivedAt" >= ${start}
+          AND d.status IN ('delivered','failed','exhausted')
+      `,
+    ),
+    prisma.$queryRaw<Array<{ p95: number | null }>>(
+      Prisma.sql`
+        SELECT
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(epoch FROM (d."deliveredAt" - e."receivedAt")) * 1000
+          ) AS p95
+        FROM "Delivery" d
+        JOIN "Event" e ON e.id = d."eventId"
+        JOIN "Source" s ON s.id = e."sourceId"
+        WHERE s."userId" = ${p.userId}
+          AND e."receivedAt" >= ${start}
+          AND d.status = 'delivered'
+          AND d."deliveredAt" IS NOT NULL
+      `,
+    ),
+  ]);
+
+  const ev = eventTotals[0] ?? { events: BigInt(0), sources: BigInt(0) };
+  const dv = deliveryTotals[0] ?? { delivered: BigInt(0), failed: BigInt(0) };
+  const lat = latency[0] ?? { p95: null };
+  const delivered = Number(dv.delivered);
+  const failed = Number(dv.failed);
+  const denom = delivered + failed;
+
+  return {
+    totalEvents: Number(ev.events),
+    activeSources: Number(ev.sources),
+    successRate: denom === 0 ? null : (delivered / denom) * 100,
+    p95LatencyMs: lat.p95 === null ? null : Number(lat.p95),
+  };
+}

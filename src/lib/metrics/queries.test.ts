@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { DeliveryStatus } from "@/generated/prisma/enums";
 
 import { prisma } from "../prisma";
-import { getLatency, getSuccessRate, getThroughput, getTopFailing } from "./queries";
+import { getLatency, getOverviewTotals, getSuccessRate, getThroughput, getTopFailing } from "./queries";
 
 async function makeUser() {
   return prisma.user.create({
@@ -263,6 +263,52 @@ describe("getTopFailing", () => {
     } finally {
       await prisma.user.delete({ where: { id: u1.id } });
       await prisma.user.delete({ where: { id: u2.id } });
+    }
+  });
+});
+
+describe("getOverviewTotals", () => {
+  it("computes total events, success rate, p95 latency, active sources", async () => {
+    const u = await makeUser();
+    try {
+      const sA = await makeSource(u.id, "A");
+      const sB = await makeSource(u.id, "B");
+      const d = await makeDestination(u.id);
+      const recv = new Date(Date.now() - 5 * 60_000);
+      const e1 = await makeEvent(sA.id, recv);
+      const e2 = await makeEvent(sA.id, recv);
+      const e3 = await makeEvent(sB.id, recv);
+
+      await prisma.delivery.createMany({
+        data: [
+          { eventId: e1.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 100) },
+          { eventId: e2.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 200) },
+          { eventId: e3.id, destinationId: d.id, status: "failed" },
+        ],
+      });
+
+      const t = await getOverviewTotals({ userId: u.id, since: "1h" });
+      expect(t.totalEvents).toBe(3);
+      expect(t.activeSources).toBe(2);
+      // 2 delivered / (2 delivered + 1 failed) = 66.66...%
+      expect(t.successRate).toBeCloseTo(66.67, 1);
+      expect(t.p95LatencyMs).toBeGreaterThanOrEqual(100);
+      expect(t.p95LatencyMs).toBeLessThanOrEqual(300);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("returns zeros / nulls when there is no data", async () => {
+    const u = await makeUser();
+    try {
+      const t = await getOverviewTotals({ userId: u.id, since: "1h" });
+      expect(t.totalEvents).toBe(0);
+      expect(t.activeSources).toBe(0);
+      expect(t.successRate).toBeNull();
+      expect(t.p95LatencyMs).toBeNull();
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
     }
   });
 });
