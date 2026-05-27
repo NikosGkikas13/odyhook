@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { DeliveryStatus } from "@/generated/prisma/enums";
 
 import { prisma } from "../prisma";
-import { getLatency, getSuccessRate, getThroughput } from "./queries";
+import { getLatency, getSuccessRate, getThroughput, getTopFailing } from "./queries";
 
 async function makeUser() {
   return prisma.user.create({
@@ -209,6 +209,60 @@ describe("getLatency", () => {
       expect(withData).toHaveLength(0);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+});
+
+describe("getTopFailing", () => {
+  it("ranks destinations by failed+exhausted count, descending", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const da = await makeDestination(u.id, "A");
+      const db = await makeDestination(u.id, "B");
+      const e1 = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
+      const e2 = await makeEvent(s.id, new Date(Date.now() - 6 * 60_000));
+      const e3 = await makeEvent(s.id, new Date(Date.now() - 7 * 60_000));
+
+      await makeDelivery(e1.id, da.id, "failed");
+      await makeDelivery(e2.id, da.id, "exhausted");
+      await makeDelivery(e3.id, db.id, "failed");
+
+      const rows = await getTopFailing({ userId: u.id, since: "1h" });
+      expect(rows).toHaveLength(2);
+      expect(rows[0].name).toBe("A");
+      expect(rows[0].failures).toBe(2);
+      expect(rows[1].name).toBe("B");
+      expect(rows[1].failures).toBe(1);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("returns an empty array when there are no failures", async () => {
+    const u = await makeUser();
+    try {
+      const rows = await getTopFailing({ userId: u.id, since: "1h" });
+      expect(rows).toEqual([]);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("ignores other users' destinations", async () => {
+    const u1 = await makeUser();
+    const u2 = await makeUser();
+    try {
+      const s = await makeSource(u1.id);
+      const d = await makeDestination(u1.id);
+      const e = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
+      await makeDelivery(e.id, d.id, "failed");
+
+      const rows = await getTopFailing({ userId: u2.id, since: "1h" });
+      expect(rows).toEqual([]);
+    } finally {
+      await prisma.user.delete({ where: { id: u1.id } });
+      await prisma.user.delete({ where: { id: u2.id } });
     }
   });
 });

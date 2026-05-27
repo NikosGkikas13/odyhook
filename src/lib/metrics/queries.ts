@@ -189,3 +189,54 @@ export async function getLatency(
     { p50: null, p95: null },
   );
 }
+
+export interface TopFailingRow {
+  destinationId: string;
+  name: string;
+  failures: number;
+  lastFailure: Date;
+}
+
+export async function getTopFailing(
+  p: MetricsQueryParams,
+): Promise<TopFailingRow[]> {
+  const start = windowStart(p.since);
+
+  const sourceFilter = p.sourceId
+    ? Prisma.sql`AND e."sourceId" = ${p.sourceId}`
+    : Prisma.empty;
+  // destinationId filter doesn't make sense on this query (always returns
+  // 1 row by definition), so it's omitted.
+
+  const rows = await prisma.$queryRaw<Array<{
+    destinationId: string;
+    name: string;
+    failures: bigint;
+    lastFailure: Date;
+  }>>(
+    Prisma.sql`
+      SELECT
+        d."destinationId" AS "destinationId",
+        dest.name,
+        COUNT(*)::bigint AS failures,
+        MAX(d."updatedAt") AS "lastFailure"
+      FROM "Delivery" d
+      JOIN "Destination" dest ON dest.id = d."destinationId"
+      JOIN "Event" e ON e.id = d."eventId"
+      WHERE dest."userId" = ${p.userId}
+        AND d.status IN ('failed','exhausted')
+        AND d."updatedAt" >= ${start}
+        ${sourceFilter}
+      GROUP BY 1, 2
+      ORDER BY failures DESC, "lastFailure" DESC
+      LIMIT 10
+    `,
+  );
+
+  return rows.map((r) => ({
+    destinationId: r.destinationId,
+    name: r.name,
+    failures: Number(r.failures),
+    lastFailure: r.lastFailure,
+  }));
+}
