@@ -1,6 +1,6 @@
 # Public REST API (`/api/v1`) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Ship a versioned, API-token-authenticated REST API (`/api/v1`) for full programmatic management of sources/destinations/routes plus read-only access to events/deliveries.
 
@@ -56,7 +56,7 @@
 **Files:**
 - Modify: `prisma/schema.prisma`
 
-- [ ] **Step 1: Add the model and back-relation**
+- [x] **Step 1: Add the model and back-relation**
 
 In `prisma/schema.prisma`, add `apiTokens ApiToken[]` to the `User` model's relation list (next to `apiKey UserApiKey?`):
 
@@ -88,12 +88,12 @@ model ApiToken {
 }
 ```
 
-- [ ] **Step 2: Create the migration**
+- [x] **Step 2: Create the migration**
 
 Run: `npm run db:migrate -- --name add_api_token`
 Expected: a new folder under `prisma/migrations/`, and "Your database is now in sync". The Prisma client regenerates so `prisma.apiToken` exists.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
@@ -110,7 +110,7 @@ Pure functions — no DB, fast unit test.
 - Create: `src/lib/api/token.ts`
 - Test: `src/lib/api/token.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/lib/api/token.test.ts
@@ -140,12 +140,12 @@ describe("token primitives", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/api/token.test.ts`
 Expected: FAIL — cannot find module `./token`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // src/lib/api/token.ts
@@ -176,12 +176,12 @@ export function parseBearer(header: string | null): string | null {
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/api/token.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/api/token.ts src/lib/api/token.test.ts
@@ -196,7 +196,7 @@ git commit -m "feat(api): token generate/hash/parse primitives"
 - Create: `src/lib/api/respond.ts`
 - Test: `src/lib/api/respond.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/lib/api/respond.test.ts
@@ -242,12 +242,12 @@ describe("parsePage", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/api/respond.test.ts`
 Expected: FAIL — cannot find module `./respond`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // src/lib/api/respond.ts
@@ -303,12 +303,12 @@ export function parsePage(url: URL): Page {
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/api/respond.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/api/respond.ts src/lib/api/respond.test.ts
@@ -326,7 +326,7 @@ This is the worked example of the Approach-A refactor. Later resources follow th
 - Test: `src/lib/services/sources.ts` via `src/lib/services/sources.test.ts`
 - Modify: `src/lib/actions/sources.ts`
 
-- [ ] **Step 1: Write the failing test (DB-backed)**
+- [x] **Step 1: Write the failing test (DB-backed)**
 
 ```ts
 // src/lib/services/sources.test.ts
@@ -388,12 +388,12 @@ describe("sources service", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `docker compose up -d && npm test -- src/lib/services/sources.test.ts`
 Expected: FAIL — cannot find module `./sources`.
 
-- [ ] **Step 3: Implement the service**
+- [x] **Step 3: Implement the service**
 
 ```ts
 // src/lib/services/sources.ts
@@ -542,12 +542,12 @@ export async function deleteSource(userId: string, id: string): Promise<boolean>
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/services/sources.test.ts`
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Refactor the Server Action to call the service**
+- [x] **Step 5: Refactor the Server Action to call the service**
 
 Replace `src/lib/actions/sources.ts` with:
 
@@ -630,12 +630,12 @@ export async function deleteSource(formData: FormData) {
 }
 ```
 
-- [ ] **Step 6: Verify the build + the UI still type-checks**
+- [x] **Step 6: Verify the build + the UI still type-checks**
 
 Run: `npm run build`
 Expected: build succeeds (confirms the action signatures the `/sources` page imports are unchanged).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/services/sources.ts src/lib/services/sources.test.ts src/lib/actions/sources.ts
@@ -652,7 +652,7 @@ The destination logic includes SSRF checks, header parsing, and two write-only s
 - Create: `src/lib/services/destinations.ts` + `src/lib/services/destinations.test.ts`
 - Modify: `src/lib/actions/destinations.ts`
 
-- [ ] **Step 1: Write the failing test (DB-backed)**
+- [x] **Step 1: Write the failing test (DB-backed)**
 
 ```ts
 // src/lib/services/destinations.test.ts
@@ -724,12 +724,12 @@ describe("destinations service", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/services/destinations.test.ts`
 Expected: FAIL — cannot find module `./destinations`.
 
-- [ ] **Step 3: Implement the service**
+- [x] **Step 3: Implement the service**
 
 ```ts
 // src/lib/services/destinations.ts
@@ -926,12 +926,12 @@ export async function deleteDestination(userId: string, id: string): Promise<boo
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/services/destinations.test.ts`
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Refactor the Server Action**
+- [x] **Step 5: Refactor the Server Action**
 
 Rewrite `src/lib/actions/destinations.ts` so `createDestination` and `deleteDestination` delegate to the service (aliased), `parseHeaders` is imported from the service (delete the local copy + the two regexes), and `toggleDestinationEnabled` stays as-is (it's UI-specific). Keep the existing exported action names:
 
@@ -989,12 +989,12 @@ export async function toggleDestinationEnabled(formData: FormData) {
 }
 ```
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `npm run build`
 Expected: succeeds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/services/destinations.ts src/lib/services/destinations.test.ts src/lib/actions/destinations.ts
@@ -1011,7 +1011,7 @@ The route resource has a compound unique `(sourceId, destinationId)` and must ve
 - Create: `src/lib/services/routes.ts` + `src/lib/services/routes.test.ts`
 - Modify: `src/lib/actions/routes.ts`
 
-- [ ] **Step 1: Write the failing test (DB-backed)**
+- [x] **Step 1: Write the failing test (DB-backed)**
 
 ```ts
 // src/lib/services/routes.test.ts
@@ -1077,12 +1077,12 @@ describe("routes service", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/services/routes.test.ts`
 Expected: FAIL — cannot find module `./routes`.
 
-- [ ] **Step 3: Implement the service**
+- [x] **Step 3: Implement the service**
 
 ```ts
 // src/lib/services/routes.ts
@@ -1197,21 +1197,21 @@ export async function deleteRoute(userId: string, id: string): Promise<boolean> 
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/services/routes.test.ts`
 Expected: PASS (5 tests).
 
-- [ ] **Step 5: Refactor `toggleRoute` to reuse ownership logic (optional, low-risk)**
+- [x] **Step 5: Refactor `toggleRoute` to reuse ownership logic (optional, low-risk)**
 
 Leave `src/lib/actions/routes.ts`'s `toggleRoute` functionally as-is — it has create-or-flip semantics specific to the UI grid that don't map onto the service's create/update split. Just confirm it still compiles. No change required beyond verifying the build in the next step.
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `npm run build`
 Expected: succeeds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/services/routes.ts src/lib/services/routes.test.ts
@@ -1227,7 +1227,7 @@ Events and deliveries are read-only via the API. Events list is paginated by `(r
 **Files:**
 - Create: `src/lib/services/events.ts` + `src/lib/services/events.test.ts`
 
-- [ ] **Step 1: Write the failing test (DB-backed)**
+- [x] **Step 1: Write the failing test (DB-backed)**
 
 ```ts
 // src/lib/services/events.test.ts
@@ -1279,12 +1279,12 @@ describe("events service", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/services/events.test.ts`
 Expected: FAIL — cannot find module `./events`.
 
-- [ ] **Step 3: Implement the service**
+- [x] **Step 3: Implement the service**
 
 ```ts
 // src/lib/services/events.ts
@@ -1370,12 +1370,12 @@ export async function getEvent(userId: string, id: string): Promise<EventDetailD
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/services/events.test.ts`
 Expected: PASS (2 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/services/events.ts src/lib/services/events.test.ts
@@ -1391,7 +1391,7 @@ git commit -m "feat(api): events read service (list + get with deliveries)"
 - Create: `src/lib/api/authenticate.ts`
 - Test: `src/lib/api/authenticate.test.ts`
 
-- [ ] **Step 1: Add the API rate-limit config + checker to `ratelimit.ts`**
+- [x] **Step 1: Add the API rate-limit config + checker to `ratelimit.ts`**
 
 Append to `src/lib/ratelimit.ts` (it already has the private `consumeToken`):
 
@@ -1418,7 +1418,7 @@ export async function checkApiRateLimit(
 }
 ```
 
-- [ ] **Step 2: Write the failing auth test (DB-backed)**
+- [x] **Step 2: Write the failing auth test (DB-backed)**
 
 ```ts
 // src/lib/api/authenticate.test.ts
@@ -1462,12 +1462,12 @@ describe("authenticateApiToken", () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify it fails**
+- [x] **Step 3: Run, verify it fails**
 
 Run: `npm test -- src/lib/api/authenticate.test.ts`
 Expected: FAIL — cannot find module `./authenticate`.
 
-- [ ] **Step 4: Implement the auth helper**
+- [x] **Step 4: Implement the auth helper**
 
 ```ts
 // src/lib/api/authenticate.ts
@@ -1496,12 +1496,12 @@ export async function authenticateApiToken(req: Request): Promise<ApiAuth | null
 }
 ```
 
-- [ ] **Step 5: Run, verify it passes**
+- [x] **Step 5: Run, verify it passes**
 
 Run: `npm test -- src/lib/api/authenticate.test.ts`
 Expected: PASS (2 tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/ratelimit.ts src/lib/api/authenticate.ts src/lib/api/authenticate.test.ts
@@ -1517,7 +1517,7 @@ To keep the eight handlers DRY, wrap auth + rate-limiting once.
 **Files:**
 - Create: `src/lib/api/handler.ts`
 
-- [ ] **Step 1: Implement the wrapper**
+- [x] **Step 1: Implement the wrapper**
 
 ```ts
 // src/lib/api/handler.ts
@@ -1578,12 +1578,12 @@ export { apiError };
 export type { ErrorCode };
 ```
 
-- [ ] **Step 2: Verify it type-checks**
+- [x] **Step 2: Verify it type-checks**
 
 Run: `npm run build`
 Expected: succeeds (no handlers use it yet; this just confirms imports resolve).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/api/handler.ts
@@ -1599,7 +1599,7 @@ git commit -m "feat(api): withApiAuth wrapper (auth + rate limit + error mapping
 - Create: `src/app/api/v1/sources/[id]/route.ts`
 - Test: `src/app/api/v1/sources/route.test.ts`
 
-- [ ] **Step 1: Implement the collection handler**
+- [x] **Step 1: Implement the collection handler**
 
 ```ts
 // src/app/api/v1/sources/route.ts
@@ -1624,7 +1624,7 @@ export const POST = withApiAuth(async (req, auth) => {
 });
 ```
 
-- [ ] **Step 2: Implement the item handler**
+- [x] **Step 2: Implement the item handler**
 
 ```ts
 // src/app/api/v1/sources/[id]/route.ts
@@ -1655,7 +1655,7 @@ export const DELETE = withApiAuth(async (_req, auth, ctx) => {
 });
 ```
 
-- [ ] **Step 3: Write the handler test (DB-backed, end-to-end through auth)**
+- [x] **Step 3: Write the handler test (DB-backed, end-to-end through auth)**
 
 ```ts
 // src/app/api/v1/sources/route.test.ts
@@ -1731,12 +1731,12 @@ describe("/api/v1/sources handlers", () => {
 });
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/app/api/v1/sources/route.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/api/v1/sources
@@ -1752,7 +1752,7 @@ git commit -m "feat(api): /api/v1/sources CRUD handlers + tests"
 - Create: `src/app/api/v1/destinations/[id]/route.ts`
 - Test: `src/app/api/v1/destinations/route.test.ts`
 
-- [ ] **Step 1: Collection handler**
+- [x] **Step 1: Collection handler**
 
 ```ts
 // src/app/api/v1/destinations/route.ts
@@ -1775,7 +1775,7 @@ export const POST = withApiAuth(async (req, auth) => {
 });
 ```
 
-- [ ] **Step 2: Item handler**
+- [x] **Step 2: Item handler**
 
 ```ts
 // src/app/api/v1/destinations/[id]/route.ts
@@ -1805,7 +1805,7 @@ export const DELETE = withApiAuth(async (_req, auth, ctx) => {
 });
 ```
 
-- [ ] **Step 3: Handler test**
+- [x] **Step 3: Handler test**
 
 ```ts
 // src/app/api/v1/destinations/route.test.ts
@@ -1876,12 +1876,12 @@ describe("/api/v1/destinations handlers", () => {
 });
 ```
 
-- [ ] **Step 4: Run — the SSRF case will FAIL (500, not 400)**
+- [x] **Step 4: Run — the SSRF case will FAIL (500, not 400)**
 
 Run: `npm test -- src/app/api/v1/destinations/route.test.ts`
 Expected: the SSRF test fails (gets 500). This is intentional — the next step fixes the error mapping.
 
-- [ ] **Step 5: Map SSRF/validation Errors to 400 in `withApiAuth`**
+- [x] **Step 5: Map SSRF/validation Errors to 400 in `withApiAuth`**
 
 The destination service throws a plain `Error` with message `Destination URL rejected: …` for SSRF and `Invalid header …` for header parsing. These are client errors, not 500s. Update the `catch` block in `src/lib/api/handler.ts` to recognize them — add this branch **before** the final `throw err`:
 
@@ -1894,12 +1894,12 @@ The destination service throws a plain `Error` with message `Destination URL rej
       }
 ```
 
-- [ ] **Step 6: Re-run, verify it passes**
+- [x] **Step 6: Re-run, verify it passes**
 
 Run: `npm test -- src/app/api/v1/destinations/route.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/app/api/v1/destinations src/lib/api/handler.ts
@@ -1915,7 +1915,7 @@ git commit -m "feat(api): /api/v1/destinations CRUD handlers + 400-mapping for S
 - Create: `src/app/api/v1/routes/[id]/route.ts`
 - Test: `src/app/api/v1/routes/route.test.ts`
 
-- [ ] **Step 1: Collection handler**
+- [x] **Step 1: Collection handler**
 
 ```ts
 // src/app/api/v1/routes/route.ts
@@ -1938,7 +1938,7 @@ export const POST = withApiAuth(async (req, auth) => {
 });
 ```
 
-- [ ] **Step 2: Item handler**
+- [x] **Step 2: Item handler**
 
 ```ts
 // src/app/api/v1/routes/[id]/route.ts
@@ -1968,7 +1968,7 @@ export const DELETE = withApiAuth(async (_req, auth, ctx) => {
 });
 ```
 
-- [ ] **Step 3: Handler test**
+- [x] **Step 3: Handler test**
 
 ```ts
 // src/app/api/v1/routes/route.test.ts
@@ -2024,12 +2024,12 @@ describe("/api/v1/routes handlers", () => {
 });
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/app/api/v1/routes/route.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/api/v1/routes
@@ -2045,7 +2045,7 @@ git commit -m "feat(api): /api/v1/routes CRUD handlers + tests"
 - Create: `src/app/api/v1/events/[id]/route.ts`
 - Test: `src/app/api/v1/events/route.test.ts`
 
-- [ ] **Step 1: Collection handler (list, paginated)**
+- [x] **Step 1: Collection handler (list, paginated)**
 
 ```ts
 // src/app/api/v1/events/route.ts
@@ -2063,7 +2063,7 @@ export const GET = withApiAuth(async (req, auth) => {
 });
 ```
 
-- [ ] **Step 2: Item handler (get with deliveries)**
+- [x] **Step 2: Item handler (get with deliveries)**
 
 ```ts
 // src/app/api/v1/events/[id]/route.ts
@@ -2081,7 +2081,7 @@ export const GET = withApiAuth(async (_req, auth, ctx) => {
 });
 ```
 
-- [ ] **Step 3: Handler test**
+- [x] **Step 3: Handler test**
 
 ```ts
 // src/app/api/v1/events/route.test.ts
@@ -2129,12 +2129,12 @@ describe("/api/v1/events handlers", () => {
 });
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/app/api/v1/events/route.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/api/v1/events
@@ -2151,7 +2151,7 @@ git commit -m "feat(api): /api/v1/events read handlers + tests"
 
 The "create" action returns the raw token once so the page can display it. Because Server Actions return values to the client component, we return `{ token }` from create.
 
-- [ ] **Step 1: Write the failing test (DB-backed, calls non-action exports)**
+- [x] **Step 1: Write the failing test (DB-backed, calls non-action exports)**
 
 The action functions call `auth()` internally, which is hard to unit-test. Extract the core into testable exports `createTokenForUser(userId, name)`, `listTokensForUser(userId)`, `revokeTokenForUser(userId, id)` in the same file, and have the `"use server"` actions wrap them with `requireUserId()`.
 
@@ -2198,12 +2198,12 @@ describe("api-token management", () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify it fails**
+- [x] **Step 2: Run, verify it fails**
 
 Run: `npm test -- src/lib/actions/api-tokens.test.ts`
 Expected: FAIL — cannot find module `./api-tokens`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 // src/lib/actions/api-tokens.ts
@@ -2279,12 +2279,12 @@ export async function revokeApiToken(formData: FormData): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run, verify it passes**
+- [x] **Step 4: Run, verify it passes**
 
 Run: `npm test -- src/lib/actions/api-tokens.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/actions/api-tokens.ts src/lib/actions/api-tokens.test.ts
@@ -2299,12 +2299,12 @@ git commit -m "feat(api): token management actions (create/list/revoke)"
 - Create: `src/app/(dashboard)/settings/api-tokens/page.tsx`
 - Modify: the settings navigation (find it first — see Step 1)
 
-- [ ] **Step 1: Locate the settings nav and the existing api-keys page for styling reference**
+- [x] **Step 1: Locate the settings nav and the existing api-keys page for styling reference**
 
 Run: `ls src/app/\(dashboard\)/settings && grep -rn "settings/api-keys" src/app src/components 2>/dev/null`
 Read `src/app/(dashboard)/settings/api-keys/page.tsx` to match its layout, form styling, and how it wires Server Actions. Mirror that structure.
 
-- [ ] **Step 2: Implement the page**
+- [x] **Step 2: Implement the page**
 
 Build a server component that lists tokens via `listTokensForUser(userId)` and renders:
 - a "Create token" form (`name` input) wired to the `createApiToken` action;
@@ -2425,16 +2425,16 @@ export function RevokeButton({ id }: { id: string }) {
 
 > Adjust class names to match the project's actual Tailwind tokens/components found in Step 1. If the api-keys page uses shared `<Button>`/`<Card>` components, use those instead of raw elements.
 
-- [ ] **Step 3: Add the nav link**
+- [x] **Step 3: Add the nav link**
 
 Add a link to `/settings/api-tokens` wherever `/settings/api-keys` is linked (found in Step 1), labeled "API Tokens".
 
-- [ ] **Step 4: Verify build + manual check**
+- [x] **Step 4: Verify build + manual check**
 
 Run: `npm run build`
 Then manually: `docker compose up -d && npm run dev`, sign in via MailHog (`localhost:8025`), visit `/settings/api-tokens`, create a token (confirm one-time reveal), copy it, revoke it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add "src/app/(dashboard)/settings/api-tokens"
@@ -2448,7 +2448,7 @@ git commit -m "feat(api): API tokens settings page (create one-time reveal + rev
 **Files:**
 - Create: `public/openapi.json`
 
-- [ ] **Step 1: Write the spec**
+- [x] **Step 1: Write the spec**
 
 Create `public/openapi.json` describing the v1 surface. Include: `openapi: 3.1.0`, `info` (title "Odyhook API", version "1.0.0"), `servers` (`https://odyhook.dev`), a `bearerAuth` security scheme (`type: http`, `scheme: bearer`), applied globally, and paths for every endpoint built in Tasks 10–13 with their request/response schemas (`Source`, `Destination`, `Route`, `Event`, `EventDetail`, `Delivery`, `Error`, and the `{ data, nextCursor }` list envelope). Mark secret fields as write-only (`signingSecret`, `outboundSecret`, `headers`) and expose the `hasX` booleans as read-only.
 
@@ -2475,12 +2475,12 @@ Minimal valid skeleton to extend (fill in all paths/schemas to match the handler
 }
 ```
 
-- [ ] **Step 2: Validate it parses**
+- [x] **Step 2: Validate it parses**
 
 Run: `node -e "JSON.parse(require('fs').readFileSync('public/openapi.json','utf8')); console.log('ok')"`
 Expected: `ok`. (It's served statically at `/openapi.json`.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add public/openapi.json
@@ -2494,21 +2494,21 @@ git commit -m "docs(api): OpenAPI 3.1 spec for /api/v1"
 **Files:**
 - Modify: `infra/README.md`
 
-- [ ] **Step 1: Document the new env vars**
+- [x] **Step 1: Document the new env vars**
 
 In `infra/README.md`, in the "Environment variables" table, add rows for `API_RATE_LIMIT_PER_SEC` (default 10) and `API_RATE_LIMIT_BURST` (default 30), runtime, "numeric tuning". Also remove the "Public API" ❌ row from any gap list if present, and note the API is live at `/api/v1` in the architecture/overview section.
 
-- [ ] **Step 2: Run the entire test suite**
+- [x] **Step 2: Run the entire test suite**
 
 Run: `docker compose up -d && npm test`
 Expected: all suites pass, including the pre-existing ones (confirms the service refactor didn't break the UI actions' behavior).
 
-- [ ] **Step 3: Run the production build**
+- [x] **Step 3: Run the production build**
 
 Run: `npm run build`
 Expected: succeeds with no type errors.
 
-- [ ] **Step 4: Manual end-to-end smoke with curl**
+- [x] **Step 4: Manual end-to-end smoke with curl**
 
 ```bash
 # with dev running and a token minted in the UI as $TOK:
@@ -2520,7 +2520,7 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/v1/sources  #
 ```
 Expected: create returns 201 + JSON with no secret fields; list returns `{ data, nextCursor }`; unauthenticated returns 401.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add infra/README.md
