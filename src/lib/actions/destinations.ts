@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { encrypt, encryptJson } from "@/lib/crypto";
-import { assertSafeUrl, SsrfError } from "@/lib/ssrf";
+import {
+  createDestination as createDestinationSvc,
+  deleteDestination as deleteDestinationSvc,
+} from "@/lib/services/destinations";
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -14,95 +15,21 @@ async function requireUserId(): Promise<string> {
   return session.user.id;
 }
 
-const createSchema = z.object({
-  name: z.string().min(1).max(100),
-  url: z.string().url(),
-  timeoutMs: z.coerce.number().int().min(1000).max(60_000).default(10_000),
-  headers: z.string().optional(), // "Key: Value" per line
-  // Optional outbound HMAC secret. Caller-supplied so they can pick a value
-  // they've already shared with the downstream service. Stored encrypted.
-  outboundSecret: z
-    .string()
-    .min(16, "Outbound signing secret must be at least 16 characters")
-    .max(256)
-    .optional()
-    .or(z.literal("")),
-});
-
-// RFC 7230 token: tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+"
-// / "-" / "." / "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-const HEADER_NAME_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-// Header field value: visible ASCII + space/tab. No CR/LF — those would
-// otherwise let a saved header smuggle a second header into the request
-// at delivery time, and `fetch` rejects them by throwing.
-const HEADER_VALUE_RE = /^[\t\x20-\x7E]*$/;
-
-function parseHeaders(raw: string | undefined): Record<string, string> {
-  if (!raw) return {};
-  const out: Record<string, string> = {};
-  for (const line of raw.split("\n")) {
-    // Tolerate \r\n line endings.
-    const cleaned = line.replace(/\r$/, "");
-    if (cleaned.trim() === "") continue;
-    const idx = cleaned.indexOf(":");
-    if (idx === -1) {
-      throw new Error(`Invalid header line (missing ':'): ${cleaned}`);
-    }
-    const key = cleaned.slice(0, idx).trim();
-    const value = cleaned.slice(idx + 1).trim();
-    if (!key) continue;
-    if (!HEADER_NAME_RE.test(key)) {
-      throw new Error(`Invalid header name: ${JSON.stringify(key)}`);
-    }
-    if (!HEADER_VALUE_RE.test(value)) {
-      throw new Error(`Invalid header value for ${key} (control chars not allowed)`);
-    }
-    out[key] = value;
-  }
-  return out;
-}
-
 export async function createDestination(formData: FormData) {
   const userId = await requireUserId();
-  const parsed = createSchema.parse({
-    name: formData.get("name"),
-    url: formData.get("url"),
-    timeoutMs: formData.get("timeoutMs") ?? 10_000,
-    headers: formData.get("headers") ?? "",
-    outboundSecret: formData.get("outboundSecret") ?? "",
+  await createDestinationSvc(userId, {
+    name: String(formData.get("name") ?? ""),
+    url: String(formData.get("url") ?? ""),
+    timeoutMs: formData.get("timeoutMs") ? Number(formData.get("timeoutMs")) : 10_000,
+    headers: String(formData.get("headers") ?? ""),
+    outboundSecret: String(formData.get("outboundSecret") ?? ""),
   });
-
-  const headers = parseHeaders(parsed.headers);
-  const hasHeaders = Object.keys(headers).length > 0;
-  const outboundSecret = parsed.outboundSecret?.trim() || null;
-
-  try {
-    await assertSafeUrl(parsed.url);
-  } catch (err) {
-    if (err instanceof SsrfError) {
-      throw new Error(`Destination URL rejected: ${err.message}`);
-    }
-    throw err;
-  }
-
-  await prisma.destination.create({
-    data: {
-      userId,
-      name: parsed.name,
-      url: parsed.url,
-      timeoutMs: parsed.timeoutMs,
-      headersEnc: hasHeaders ? encryptJson(headers) : null,
-      outboundSecretEnc: outboundSecret ? encrypt(outboundSecret) : null,
-    },
-  });
-
   revalidatePath("/destinations");
 }
 
 export async function deleteDestination(formData: FormData) {
   const userId = await requireUserId();
-  const id = String(formData.get("id"));
-  await prisma.destination.deleteMany({ where: { id, userId } });
+  await deleteDestinationSvc(userId, String(formData.get("id")));
   revalidatePath("/destinations");
 }
 
@@ -126,12 +53,7 @@ export async function toggleDestinationEnabled(formData: FormData) {
   // gets a fresh failure window. Pausing leaves the counter alone — an
   // operator pause shouldn't pardon prior failures.
   const data = nextEnabled
-    ? {
-        enabled: true,
-        consecutiveFailures: 0,
-        autoDisabledAt: null,
-        autoDisabledReason: null,
-      }
+    ? { enabled: true, consecutiveFailures: 0, autoDisabledAt: null, autoDisabledReason: null }
     : { enabled: false };
 
   await prisma.destination.update({ where: { id }, data });
