@@ -11,6 +11,7 @@ const NAV = [
   { href: "/routes", label: "Routes" },
   { href: "/settings/api-keys", label: "Settings" },
   { href: "/settings/alerts", label: "Alerts" },
+  { href: "/settings/api-tokens", label: "API Tokens" },
 ];
 
 export function NavLinks() {
