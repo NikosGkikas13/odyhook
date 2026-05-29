@@ -22,7 +22,7 @@ The operational ground truth for the project. Updated whenever infra changes. Fo
 
 ## What this project is (one-paragraph version)
 
-External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest).
+External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest). A public REST API is live at `/api/v1` (authenticated by API tokens minted at Settings → API Tokens); the OpenAPI spec is served at `/openapi.json`.
 
 Five running containers in production. Three external services (Resend, Cloudflare R2, Sentry). One cron file. Everything deployed via GitHub Actions on push to `main`.
 
@@ -247,6 +247,8 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | `SENTRY_DSN` | Error reporting endpoint | runtime | DSN is public-ish; rotate if abuse |
 | `RATE_LIMIT_PER_SEC` `RATE_LIMIT_BURST` | Default rate-limit when no per-source override (default 10/20) | runtime | numeric tuning |
 | `DESTINATION_FAILURE_THRESHOLD` | Consecutive exhausted deliveries before auto-disabling a destination (default `5`). | runtime | numeric tuning |
+| `API_RATE_LIMIT_PER_SEC` | Per-API-token REST API rate limit refill (default 10/sec) | runtime | numeric tuning |
+| `API_RATE_LIMIT_BURST` | Per-API-token REST API rate limit burst capacity (default 30) | runtime | numeric tuning |
 
 **There is no off-site backup of `.env` currently.** If the server is destroyed, you'd regenerate most values from external dashboards but `ENCRYPTION_KEY` loss is unrecoverable for encrypted columns. See [recovery.md](recovery.md#lost-env-file).
 
