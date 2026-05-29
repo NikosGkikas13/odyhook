@@ -124,14 +124,21 @@ export async function updateSource(
       data.verifyStyle = null;
       data.signingSecret = null;
     } else {
-      if (!parsed.signingSecret?.trim()) {
+      data.verifyStyle = parsed.verifyStyle;
+      if (parsed.signingSecret?.trim()) {
+        data.signingSecret = encrypt(parsed.signingSecret);
+      } else if (existing.signingSecret == null) {
+        // No new secret supplied AND none on record → genuinely missing.
         throw new z.ZodError([
           { code: "custom", path: ["signingSecret"], message: "signing secret is required when verifyStyle is set" },
         ]);
       }
-      data.verifyStyle = parsed.verifyStyle;
-      data.signingSecret = encrypt(parsed.signingSecret);
+      // else: keep the existing encrypted secret (no change to that column)
     }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return toDTO(existing);
   }
 
   const updated = await prisma.source.update({ where: { id }, data });

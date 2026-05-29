@@ -54,4 +54,21 @@ describe("sources service", () => {
     expect(await deleteSource(a.id, s.id)).toBe(true);
     expect(await getSource(a.id, s.id)).toBeNull();
   });
+
+  it("rotating verifyStyle between non-none values without a new secret keeps the existing secret", async () => {
+    const u = await makeUser();
+    const s = await createSource(u.id, { name: "S", verifyStyle: "stripe", signingSecret: "whsec_abc" });
+    expect(s.hasSigningSecret).toBe(true);
+    const up = await updateSource(u.id, s.id, { verifyStyle: "github" });
+    expect(up?.verifyStyle).toBe("github");
+    expect(up?.hasSigningSecret).toBe(true);
+  });
+
+  it("an empty update returns the unchanged DTO without throwing", async () => {
+    const u = await makeUser();
+    const s = await createSource(u.id, { name: "Unchanged", verifyStyle: "none" });
+    const up = await updateSource(u.id, s.id, {});
+    expect(up?.id).toBe(s.id);
+    expect(up?.name).toBe("Unchanged");
+  });
 });
