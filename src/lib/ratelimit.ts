@@ -169,3 +169,24 @@ export function configForSource(source: {
         : def.capacity,
   };
 }
+
+/**
+ * Per-API-token rate limit for the public REST API. Keyed on the token id so a
+ * single runaway script can't saturate the API. Override via
+ * API_RATE_LIMIT_PER_SEC / API_RATE_LIMIT_BURST.
+ */
+export function defaultApiConfig(): RateLimitConfig {
+  const refill = Number(process.env.API_RATE_LIMIT_PER_SEC ?? 10);
+  const burst = Number(process.env.API_RATE_LIMIT_BURST ?? 30);
+  return {
+    refillPerSec: Number.isFinite(refill) && refill > 0 ? refill : 10,
+    capacity: Number.isFinite(burst) && burst > 0 ? burst : 30,
+  };
+}
+
+export async function checkApiRateLimit(
+  tokenId: string,
+  cfg: RateLimitConfig = defaultApiConfig(),
+): Promise<RateLimitResult> {
+  return consumeToken(`rl:api:${tokenId}`, cfg);
+}
