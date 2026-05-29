@@ -9,8 +9,11 @@ import {
   revokeTokenForUser,
 } from "@/lib/services/api-tokens";
 
+// NOTE: do NOT re-export the *ForUser helpers from this "use server" file —
+// doing so would expose them as client-callable server actions that accept an
+// arbitrary userId with no session check (privilege escalation). They're
+// imported for internal use only; tests import them from the service module.
 export type { ApiTokenSummary } from "@/lib/services/api-tokens";
-export { createTokenForUser, listTokensForUser, revokeTokenForUser };
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
