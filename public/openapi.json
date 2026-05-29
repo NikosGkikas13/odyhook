@@ -1,0 +1,1042 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Odyhook API",
+    "version": "1.0.0",
+    "description": "REST API for managing webhook sources, destinations, routes, and events in Odyhook. All endpoints require a bearer token issued from Settings → API Tokens."
+  },
+  "servers": [
+    {
+      "url": "https://odyhook.dev"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token from Settings → API Tokens (ody_…)."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unauthorized",
+                  "not_found",
+                  "validation_error",
+                  "rate_limited",
+                  "conflict"
+                ],
+                "description": "Machine-readable error code."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error description."
+              },
+              "details": {
+                "type": "object",
+                "description": "Optional structured validation details.",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "description": "A webhook source — an ingest endpoint Odyhook listens on.",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "verifyStyle",
+          "hasSigningSecret",
+          "rateLimitPerSec",
+          "rateLimitBurst",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique identifier (CUID)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for the source."
+          },
+          "slug": {
+            "type": "string",
+            "readOnly": true,
+            "description": "URL slug used in the ingest endpoint path."
+          },
+          "verifyStyle": {
+            "type": ["string", "null"],
+            "enum": ["stripe", "github", "generic-sha256", null],
+            "description": "HMAC verification style. null means no signature verification."
+          },
+          "hasSigningSecret": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether a signing secret is configured. The secret itself is never returned."
+          },
+          "rateLimitPerSec": {
+            "type": ["integer", "null"],
+            "description": "Per-second rate limit override. null means the global default applies."
+          },
+          "rateLimitBurst": {
+            "type": ["integer", "null"],
+            "description": "Burst allowance override. null means the global default applies."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 creation timestamp."
+          }
+        }
+      },
+      "SourceCreate": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Display name for the source."
+          },
+          "verifyStyle": {
+            "type": "string",
+            "enum": ["none", "stripe", "github", "generic-sha256"],
+            "default": "none",
+            "description": "HMAC verification style. Defaults to none (no verification)."
+          },
+          "signingSecret": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Signing secret for HMAC verification. Required when verifyStyle is not none. Never returned in responses."
+          }
+        }
+      },
+      "SourceUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Updated display name."
+          },
+          "verifyStyle": {
+            "type": "string",
+            "enum": ["none", "stripe", "github", "generic-sha256"],
+            "description": "Updated HMAC verification style."
+          },
+          "signingSecret": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "New signing secret. Required when changing verifyStyle to a non-none value and no secret is already stored. Never returned in responses."
+          },
+          "rateLimitPerSec": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Per-second rate limit override. Set to null to revert to the global default."
+          },
+          "rateLimitBurst": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Burst allowance override. Set to null to revert to the global default."
+          }
+        }
+      },
+      "Destination": {
+        "type": "object",
+        "description": "A downstream URL that Odyhook delivers webhook payloads to.",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "timeoutMs",
+          "enabled",
+          "hasHeaders",
+          "hasOutboundSecret",
+          "consecutiveFailures",
+          "autoDisabledAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique identifier (CUID)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name for the destination."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "HTTPS URL Odyhook POSTs to."
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 60000,
+            "description": "Request timeout in milliseconds."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this destination is active. Odyhook auto-disables after consecutive failures."
+          },
+          "hasHeaders": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether custom outbound headers are configured. Header values are never returned."
+          },
+          "hasOutboundSecret": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether an outbound signing secret is configured. The secret itself is never returned."
+          },
+          "consecutiveFailures": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Number of consecutive delivery failures. Reset to 0 when the destination is re-enabled."
+          },
+          "autoDisabledAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 timestamp when the destination was auto-disabled due to repeated failures, or null."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 creation timestamp."
+          }
+        }
+      },
+      "DestinationCreate": {
+        "type": "object",
+        "required": ["name", "url"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Display name for the destination."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "HTTPS URL to deliver webhooks to. Private/internal IP ranges are rejected (SSRF protection)."
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 60000,
+            "default": 10000,
+            "description": "Request timeout in milliseconds."
+          },
+          "headers": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Custom outbound HTTP headers, one per line in 'Name: Value' format. Never returned in responses."
+          },
+          "outboundSecret": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256,
+            "writeOnly": true,
+            "description": "Secret used to sign outbound payloads (HMAC-SHA256 in X-Odyhook-Signature header). Never returned in responses."
+          }
+        }
+      },
+      "DestinationUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Updated display name."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Updated delivery URL. Private/internal IP ranges are rejected."
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 60000,
+            "description": "Updated timeout in milliseconds."
+          },
+          "headers": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Replacement custom outbound headers ('Name: Value' per line). Pass an empty string to clear. Never returned in responses."
+          },
+          "outboundSecret": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256,
+            "writeOnly": true,
+            "description": "Replacement outbound signing secret. Pass an empty string to clear. Never returned in responses."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Re-enable or disable the destination. Setting to true also resets consecutiveFailures to 0."
+          }
+        }
+      },
+      "Route": {
+        "type": "object",
+        "description": "A link between a source and a destination — determines which sources fan out to which destinations.",
+        "required": [
+          "id",
+          "sourceId",
+          "destinationId",
+          "enabled",
+          "hasFilter",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique identifier (CUID)."
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "ID of the source this route belongs to."
+          },
+          "destinationId": {
+            "type": "string",
+            "description": "ID of the destination this route delivers to."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether events on this route are delivered."
+          },
+          "hasFilter": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether a filter expression is configured for this route."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 creation timestamp."
+          }
+        }
+      },
+      "RouteCreate": {
+        "type": "object",
+        "required": ["sourceId", "destinationId"],
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID of the source to route from. Must belong to the authenticated user."
+          },
+          "destinationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID of the destination to route to. Must belong to the authenticated user."
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to enable delivery immediately."
+          }
+        }
+      },
+      "RouteUpdate": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable or disable delivery on this route."
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "description": "A webhook event received by an ingest endpoint.",
+        "required": [
+          "id",
+          "sourceId",
+          "method",
+          "receivedAt",
+          "remoteIp",
+          "idempotencyKey"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique identifier (CUID)."
+          },
+          "sourceId": {
+            "type": "string",
+            "readOnly": true,
+            "description": "ID of the source that received this event."
+          },
+          "method": {
+            "type": "string",
+            "readOnly": true,
+            "description": "HTTP method of the inbound request (e.g. POST)."
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 timestamp when the event was received."
+          },
+          "remoteIp": {
+            "type": ["string", "null"],
+            "readOnly": true,
+            "description": "IP address of the sender, or null if unavailable."
+          },
+          "idempotencyKey": {
+            "type": ["string", "null"],
+            "readOnly": true,
+            "description": "Idempotency key from the inbound request, or null."
+          }
+        }
+      },
+      "Delivery": {
+        "type": "object",
+        "description": "A single delivery attempt record for one route on one event.",
+        "required": [
+          "id",
+          "destinationId",
+          "status",
+          "attemptCount",
+          "responseCode",
+          "lastError",
+          "deliveredAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique identifier (CUID)."
+          },
+          "destinationId": {
+            "type": "string",
+            "readOnly": true,
+            "description": "ID of the destination this delivery targets."
+          },
+          "status": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Delivery status (e.g. pending, success, failed, exhausted)."
+          },
+          "attemptCount": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "Number of delivery attempts made so far."
+          },
+          "responseCode": {
+            "type": ["integer", "null"],
+            "readOnly": true,
+            "description": "HTTP status code returned by the destination on the last attempt, or null."
+          },
+          "lastError": {
+            "type": ["string", "null"],
+            "readOnly": true,
+            "description": "Error message from the last failed attempt, or null."
+          },
+          "deliveredAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 timestamp of successful delivery, or null."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true,
+            "description": "ISO 8601 timestamp when this delivery record was created."
+          }
+        }
+      },
+      "EventDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Event" },
+          {
+            "type": "object",
+            "required": ["bodyRaw", "deliveries"],
+            "properties": {
+              "bodyRaw": {
+                "type": "string",
+                "readOnly": true,
+                "description": "Raw body of the inbound webhook request."
+              },
+              "deliveries": {
+                "type": "array",
+                "readOnly": true,
+                "items": { "$ref": "#/components/schemas/Delivery" },
+                "description": "All delivery records for this event, ordered newest first."
+              }
+            }
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25
+        },
+        "description": "Maximum number of items to return (1–100, default 25)."
+      },
+      "cursor": {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Opaque pagination cursor. Use the nextCursor value from a previous response."
+      },
+      "resourceId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid API token.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "unauthorized",
+                "message": "invalid or missing API token"
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found or does not belong to the authenticated user.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "not_found",
+                "message": "resource not found"
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request body failed schema validation.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "validation_error",
+                "message": "signing secret is required when verifyStyle is set",
+                "details": {
+                  "path": ["signingSecret"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "A duplicate resource already exists.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "conflict",
+                "message": "route already exists"
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests.",
+        "headers": {
+          "Retry-After": {
+            "schema": { "type": "integer" },
+            "description": "Seconds to wait before retrying."
+          },
+          "X-RateLimit-Remaining": {
+            "schema": { "type": "integer" },
+            "description": "Remaining requests in the current window (always 0 on a 429)."
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "rate_limited",
+                "message": "rate limit exceeded"
+              }
+            }
+          }
+        }
+      },
+      "NoContent": {
+        "description": "Resource deleted successfully. No response body."
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/sources": {
+      "get": {
+        "operationId": "listSources",
+        "summary": "List sources",
+        "description": "Returns a paginated list of webhook sources belonging to the authenticated user.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/cursor" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of sources.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "nextCursor"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Source" }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"],
+                      "description": "Cursor to pass as ?cursor= to retrieve the next page. null when there are no more results."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "createSource",
+        "summary": "Create a source",
+        "description": "Creates a new webhook source. A unique ingest slug is generated automatically.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SourceCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Source created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Source" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/sources/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/resourceId" }
+      ],
+      "get": {
+        "operationId": "getSource",
+        "summary": "Get a source",
+        "description": "Retrieves a single source by ID.",
+        "responses": {
+          "200": {
+            "description": "Source found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Source" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateSource",
+        "summary": "Update a source",
+        "description": "Partially updates a source. Only supplied fields are changed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SourceUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Source updated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Source" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSource",
+        "summary": "Delete a source",
+        "description": "Permanently deletes a source. Associated routes and their event history are also removed.",
+        "responses": {
+          "204": { "$ref": "#/components/responses/NoContent" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/destinations": {
+      "get": {
+        "operationId": "listDestinations",
+        "summary": "List destinations",
+        "description": "Returns a paginated list of webhook destinations belonging to the authenticated user.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/cursor" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of destinations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "nextCursor"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Destination" }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"],
+                      "description": "Cursor for the next page. null when there are no more results."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "createDestination",
+        "summary": "Create a destination",
+        "description": "Creates a new webhook destination. The URL is checked against SSRF protection rules; private/internal IP ranges are rejected.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DestinationCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Destination created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Destination" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/destinations/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/resourceId" }
+      ],
+      "get": {
+        "operationId": "getDestination",
+        "summary": "Get a destination",
+        "description": "Retrieves a single destination by ID.",
+        "responses": {
+          "200": {
+            "description": "Destination found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Destination" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateDestination",
+        "summary": "Update a destination",
+        "description": "Partially updates a destination. Only supplied fields are changed. Setting enabled to true also clears the consecutive failure counter.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DestinationUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Destination updated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Destination" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDestination",
+        "summary": "Delete a destination",
+        "description": "Permanently deletes a destination.",
+        "responses": {
+          "204": { "$ref": "#/components/responses/NoContent" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/routes": {
+      "get": {
+        "operationId": "listRoutes",
+        "summary": "List routes",
+        "description": "Returns a paginated list of routes belonging to the authenticated user.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/cursor" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of routes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "nextCursor"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Route" }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"],
+                      "description": "Cursor for the next page. null when there are no more results."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "createRoute",
+        "summary": "Create a route",
+        "description": "Creates a route linking a source to a destination. Both resources must belong to the authenticated user. Returns 409 if a route between this source and destination already exists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RouteCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Route created.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Route" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/routes/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/resourceId" }
+      ],
+      "get": {
+        "operationId": "getRoute",
+        "summary": "Get a route",
+        "description": "Retrieves a single route by ID.",
+        "responses": {
+          "200": {
+            "description": "Route found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Route" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "operationId": "updateRoute",
+        "summary": "Update a route",
+        "description": "Partially updates a route. Currently only the enabled flag can be toggled.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RouteUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route updated.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Route" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "operationId": "deleteRoute",
+        "summary": "Delete a route",
+        "description": "Permanently deletes a route.",
+        "responses": {
+          "204": { "$ref": "#/components/responses/NoContent" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "List events",
+        "description": "Returns a paginated list of webhook events received by all sources belonging to the authenticated user, ordered newest first.",
+        "parameters": [
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/cursor" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "nextCursor"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Event" }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"],
+                      "description": "Cursor for the next page. null when there are no more results."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/events/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/resourceId" }
+      ],
+      "get": {
+        "operationId": "getEvent",
+        "summary": "Get an event",
+        "description": "Retrieves a single event including its raw body and all delivery records.",
+        "responses": {
+          "200": {
+            "description": "Event found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EventDetail" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}
