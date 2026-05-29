@@ -18,9 +18,10 @@ describe("authenticateApiToken", () => {
   it("returns userId for a valid token", async () => {
     const u = await makeUser();
     const t = generateToken();
-    await prisma.apiToken.create({ data: { userId: u.id, name: "t", tokenHash: t.hash, prefix: t.prefix } });
+    const created = await prisma.apiToken.create({ data: { userId: u.id, name: "t", tokenHash: t.hash, prefix: t.prefix } });
     const res = await authenticateApiToken(req(`Bearer ${t.raw}`));
     expect(res?.userId).toBe(u.id);
+    expect(res?.tokenId).toBe(created.id);
   });
 
   it("returns null for missing, malformed, unknown, and revoked tokens", async () => {
@@ -34,5 +35,7 @@ describe("authenticateApiToken", () => {
       data: { userId: u.id, name: "t", tokenHash: t.hash, prefix: t.prefix, revokedAt: new Date() },
     });
     expect(await authenticateApiToken(req(`Bearer ${t.raw}`))).toBeNull();
+
+    expect(await authenticateApiToken(req("Bearer ody_"))).toBeNull();
   });
 });
