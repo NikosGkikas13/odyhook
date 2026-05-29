@@ -62,10 +62,21 @@ export async function createRoute(userId: string, input: RouteInput): Promise<Ro
   });
   if (existing) throw new RouteConflictError("conflict: route already exists");
 
-  const created = await prisma.route.create({
-    data: { sourceId: parsed.sourceId, destinationId: parsed.destinationId, enabled: parsed.enabled },
-  });
-  return toDTO(created);
+  // The findUnique above handles the common case cleanly, but two concurrent
+  // creates can both pass it and race to insert. The @@unique constraint is
+  // the real guard: catch its P2002 and map to the same conflict error so the
+  // handler returns 409 rather than 500. (Duck-typed like the ingest handler.)
+  try {
+    const created = await prisma.route.create({
+      data: { sourceId: parsed.sourceId, destinationId: parsed.destinationId, enabled: parsed.enabled },
+    });
+    return toDTO(created);
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: unknown }).code === "P2002") {
+      throw new RouteConflictError("conflict: route already exists");
+    }
+    throw err;
+  }
 }
 
 export async function listRoutes(

@@ -26,11 +26,16 @@
     "schemas": {
       "Error": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
           "error": {
             "type": "object",
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "properties": {
               "code": {
                 "type": "string",
@@ -85,8 +90,16 @@
             "description": "URL slug used in the ingest endpoint path."
           },
           "verifyStyle": {
-            "type": ["string", "null"],
-            "enum": ["stripe", "github", "generic-sha256", null],
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "stripe",
+              "github",
+              "generic-sha256",
+              null
+            ],
             "description": "HMAC verification style. null means no signature verification."
           },
           "hasSigningSecret": {
@@ -95,11 +108,17 @@
             "description": "Whether a signing secret is configured. The secret itself is never returned."
           },
           "rateLimitPerSec": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "description": "Per-second rate limit override. null means the global default applies."
           },
           "rateLimitBurst": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "description": "Burst allowance override. null means the global default applies."
           },
           "createdAt": {
@@ -112,7 +131,9 @@
       },
       "SourceCreate": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -122,7 +143,12 @@
           },
           "verifyStyle": {
             "type": "string",
-            "enum": ["none", "stripe", "github", "generic-sha256"],
+            "enum": [
+              "none",
+              "stripe",
+              "github",
+              "generic-sha256"
+            ],
             "default": "none",
             "description": "HMAC verification style. Defaults to none (no verification)."
           },
@@ -144,7 +170,12 @@
           },
           "verifyStyle": {
             "type": "string",
-            "enum": ["none", "stripe", "github", "generic-sha256"],
+            "enum": [
+              "none",
+              "stripe",
+              "github",
+              "generic-sha256"
+            ],
             "description": "Updated HMAC verification style."
           },
           "signingSecret": {
@@ -153,12 +184,18 @@
             "description": "New signing secret. Required when changing verifyStyle to a non-none value and no secret is already stored. Never returned in responses."
           },
           "rateLimitPerSec": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1,
             "description": "Per-second rate limit override. Set to null to revert to the global default."
           },
           "rateLimitBurst": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1,
             "description": "Burst allowance override. Set to null to revert to the global default."
           }
@@ -220,7 +257,10 @@
             "description": "Number of consecutive delivery failures. Reset to 0 when the destination is re-enabled."
           },
           "autoDisabledAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
             "readOnly": true,
             "description": "ISO 8601 timestamp when the destination was auto-disabled due to repeated failures, or null."
@@ -235,7 +275,10 @@
       },
       "DestinationCreate": {
         "type": "object",
-        "required": ["name", "url"],
+        "required": [
+          "name",
+          "url"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -351,7 +394,10 @@
       },
       "RouteCreate": {
         "type": "object",
-        "required": ["sourceId", "destinationId"],
+        "required": [
+          "sourceId",
+          "destinationId"
+        ],
         "properties": {
           "sourceId": {
             "type": "string",
@@ -413,12 +459,18 @@
             "description": "ISO 8601 timestamp when the event was received."
           },
           "remoteIp": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "readOnly": true,
             "description": "IP address of the sender, or null if unavailable."
           },
           "idempotencyKey": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "readOnly": true,
             "description": "Idempotency key from the inbound request, or null."
           }
@@ -459,17 +511,26 @@
             "description": "Number of delivery attempts made so far."
           },
           "responseCode": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "readOnly": true,
             "description": "HTTP status code returned by the destination on the last attempt, or null."
           },
           "lastError": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "readOnly": true,
             "description": "Error message from the last failed attempt, or null."
           },
           "deliveredAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
             "readOnly": true,
             "description": "ISO 8601 timestamp of successful delivery, or null."
@@ -484,10 +545,15 @@
       },
       "EventDetail": {
         "allOf": [
-          { "$ref": "#/components/schemas/Event" },
+          {
+            "$ref": "#/components/schemas/Event"
+          },
           {
             "type": "object",
-            "required": ["bodyRaw", "deliveries"],
+            "required": [
+              "bodyRaw",
+              "deliveries"
+            ],
             "properties": {
               "bodyRaw": {
                 "type": "string",
@@ -497,7 +563,9 @@
               "deliveries": {
                 "type": "array",
                 "readOnly": true,
-                "items": { "$ref": "#/components/schemas/Delivery" },
+                "items": {
+                  "$ref": "#/components/schemas/Delivery"
+                },
                 "description": "All delivery records for this event, ordered newest first."
               }
             }
@@ -540,7 +608,9 @@
         "description": "Missing or invalid API token.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
             "example": {
               "error": {
                 "code": "unauthorized",
@@ -554,7 +624,9 @@
         "description": "Resource not found or does not belong to the authenticated user.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
             "example": {
               "error": {
                 "code": "not_found",
@@ -568,13 +640,17 @@
         "description": "Request body failed schema validation.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
             "example": {
               "error": {
                 "code": "validation_error",
                 "message": "signing secret is required when verifyStyle is set",
                 "details": {
-                  "path": ["signingSecret"]
+                  "path": [
+                    "signingSecret"
+                  ]
                 }
               }
             }
@@ -585,7 +661,9 @@
         "description": "A duplicate resource already exists.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
             "example": {
               "error": {
                 "code": "conflict",
@@ -599,17 +677,23 @@
         "description": "Too many requests.",
         "headers": {
           "Retry-After": {
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Seconds to wait before retrying."
           },
           "X-RateLimit-Remaining": {
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "Remaining requests in the current window (always 0 on a 429)."
           }
         },
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
             "example": {
               "error": {
                 "code": "rate_limited",
@@ -631,8 +715,12 @@
         "summary": "List sources",
         "description": "Returns a paginated list of webhook sources belonging to the authenticated user.",
         "parameters": [
-          { "$ref": "#/components/parameters/limit" },
-          { "$ref": "#/components/parameters/cursor" }
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
         ],
         "responses": {
           "200": {
@@ -641,14 +729,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data", "nextCursor"],
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/Source" }
+                      "items": {
+                        "$ref": "#/components/schemas/Source"
+                      }
                     },
                     "nextCursor": {
-                      "type": ["string", "null"],
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "description": "Cursor to pass as ?cursor= to retrieve the next page. null when there are no more results."
                     }
                   }
@@ -656,7 +752,12 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "post": {
@@ -667,7 +768,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SourceCreate" }
+              "schema": {
+                "$ref": "#/components/schemas/SourceCreate"
+              }
             }
           }
         },
@@ -676,18 +779,29 @@
             "description": "Source created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Source" }
+                "schema": {
+                  "$ref": "#/components/schemas/Source"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
     "/api/v1/sources/{id}": {
       "parameters": [
-        { "$ref": "#/components/parameters/resourceId" }
+        {
+          "$ref": "#/components/parameters/resourceId"
+        }
       ],
       "get": {
         "operationId": "getSource",
@@ -698,12 +812,21 @@
             "description": "Source found.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Source" }
+                "schema": {
+                  "$ref": "#/components/schemas/Source"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "patch": {
@@ -714,7 +837,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SourceUpdate" }
+              "schema": {
+                "$ref": "#/components/schemas/SourceUpdate"
+              }
             }
           }
         },
@@ -723,13 +848,24 @@
             "description": "Source updated.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Source" }
+                "schema": {
+                  "$ref": "#/components/schemas/Source"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "delete": {
@@ -737,9 +873,18 @@
         "summary": "Delete a source",
         "description": "Permanently deletes a source. Associated routes and their event history are also removed.",
         "responses": {
-          "204": { "$ref": "#/components/responses/NoContent" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
@@ -749,8 +894,12 @@
         "summary": "List destinations",
         "description": "Returns a paginated list of webhook destinations belonging to the authenticated user.",
         "parameters": [
-          { "$ref": "#/components/parameters/limit" },
-          { "$ref": "#/components/parameters/cursor" }
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
         ],
         "responses": {
           "200": {
@@ -759,14 +908,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data", "nextCursor"],
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/Destination" }
+                      "items": {
+                        "$ref": "#/components/schemas/Destination"
+                      }
                     },
                     "nextCursor": {
-                      "type": ["string", "null"],
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "description": "Cursor for the next page. null when there are no more results."
                     }
                   }
@@ -774,7 +931,12 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "post": {
@@ -785,7 +947,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/DestinationCreate" }
+              "schema": {
+                "$ref": "#/components/schemas/DestinationCreate"
+              }
             }
           }
         },
@@ -794,18 +958,29 @@
             "description": "Destination created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Destination" }
+                "schema": {
+                  "$ref": "#/components/schemas/Destination"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
     "/api/v1/destinations/{id}": {
       "parameters": [
-        { "$ref": "#/components/parameters/resourceId" }
+        {
+          "$ref": "#/components/parameters/resourceId"
+        }
       ],
       "get": {
         "operationId": "getDestination",
@@ -816,12 +991,21 @@
             "description": "Destination found.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Destination" }
+                "schema": {
+                  "$ref": "#/components/schemas/Destination"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "patch": {
@@ -832,7 +1016,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/DestinationUpdate" }
+              "schema": {
+                "$ref": "#/components/schemas/DestinationUpdate"
+              }
             }
           }
         },
@@ -841,13 +1027,24 @@
             "description": "Destination updated.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Destination" }
+                "schema": {
+                  "$ref": "#/components/schemas/Destination"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "delete": {
@@ -855,9 +1052,18 @@
         "summary": "Delete a destination",
         "description": "Permanently deletes a destination.",
         "responses": {
-          "204": { "$ref": "#/components/responses/NoContent" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
@@ -867,8 +1073,12 @@
         "summary": "List routes",
         "description": "Returns a paginated list of routes belonging to the authenticated user.",
         "parameters": [
-          { "$ref": "#/components/parameters/limit" },
-          { "$ref": "#/components/parameters/cursor" }
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
         ],
         "responses": {
           "200": {
@@ -877,14 +1087,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data", "nextCursor"],
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/Route" }
+                      "items": {
+                        "$ref": "#/components/schemas/Route"
+                      }
                     },
                     "nextCursor": {
-                      "type": ["string", "null"],
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "description": "Cursor for the next page. null when there are no more results."
                     }
                   }
@@ -892,7 +1110,12 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "post": {
@@ -903,7 +1126,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RouteCreate" }
+              "schema": {
+                "$ref": "#/components/schemas/RouteCreate"
+              }
             }
           }
         },
@@ -912,20 +1137,35 @@
             "description": "Route created.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Route" }
+                "schema": {
+                  "$ref": "#/components/schemas/Route"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "409": { "$ref": "#/components/responses/Conflict" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
     "/api/v1/routes/{id}": {
       "parameters": [
-        { "$ref": "#/components/parameters/resourceId" }
+        {
+          "$ref": "#/components/parameters/resourceId"
+        }
       ],
       "get": {
         "operationId": "getRoute",
@@ -936,12 +1176,21 @@
             "description": "Route found.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Route" }
+                "schema": {
+                  "$ref": "#/components/schemas/Route"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "patch": {
@@ -952,7 +1201,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RouteUpdate" }
+              "schema": {
+                "$ref": "#/components/schemas/RouteUpdate"
+              }
             }
           }
         },
@@ -961,13 +1212,24 @@
             "description": "Route updated.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Route" }
+                "schema": {
+                  "$ref": "#/components/schemas/Route"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/ValidationError" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "delete": {
@@ -975,9 +1237,18 @@
         "summary": "Delete a route",
         "description": "Permanently deletes a route.",
         "responses": {
-          "204": { "$ref": "#/components/responses/NoContent" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
@@ -987,8 +1258,12 @@
         "summary": "List events",
         "description": "Returns a paginated list of webhook events received by all sources belonging to the authenticated user, ordered newest first.",
         "parameters": [
-          { "$ref": "#/components/parameters/limit" },
-          { "$ref": "#/components/parameters/cursor" }
+          {
+            "$ref": "#/components/parameters/limit"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
         ],
         "responses": {
           "200": {
@@ -997,14 +1272,22 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data", "nextCursor"],
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/Event" }
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
                     },
                     "nextCursor": {
-                      "type": ["string", "null"],
+                      "type": [
+                        "string",
+                        "null"
+                      ],
                       "description": "Cursor for the next page. null when there are no more results."
                     }
                   }
@@ -1012,13 +1295,20 @@
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
     "/api/v1/events/{id}": {
       "parameters": [
-        { "$ref": "#/components/parameters/resourceId" }
+        {
+          "$ref": "#/components/parameters/resourceId"
+        }
       ],
       "get": {
         "operationId": "getEvent",
@@ -1029,12 +1319,21 @@
             "description": "Event found.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/EventDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/EventDetail"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     }
