@@ -1,0 +1,112 @@
+import { z } from "zod";
+
+import { prisma } from "@/lib/prisma";
+import type { Page } from "@/lib/api/respond";
+
+export const routeCreateSchema = z.object({
+  sourceId: z.string().min(1),
+  destinationId: z.string().min(1),
+  enabled: z.boolean().default(true),
+});
+
+export const routeUpdateSchema = z.object({
+  enabled: z.boolean().optional(),
+});
+
+export type RouteInput = z.input<typeof routeCreateSchema>;
+export type RouteUpdateInput = z.input<typeof routeUpdateSchema>;
+
+export type RouteDTO = {
+  id: string;
+  sourceId: string;
+  destinationId: string;
+  enabled: boolean;
+  hasFilter: boolean;
+  createdAt: string;
+};
+
+type RouteRow = {
+  id: string;
+  sourceId: string;
+  destinationId: string;
+  enabled: boolean;
+  filterAst: unknown;
+  createdAt: Date;
+};
+
+function toDTO(r: RouteRow): RouteDTO {
+  return {
+    id: r.id,
+    sourceId: r.sourceId,
+    destinationId: r.destinationId,
+    enabled: r.enabled,
+    hasFilter: r.filterAst != null,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
+
+/** Thrown when a (source,destination) route already exists. Handlers map to 409. */
+export class RouteConflictError extends Error {}
+
+export async function createRoute(userId: string, input: RouteInput): Promise<RouteDTO> {
+  const parsed = routeCreateSchema.parse(input);
+  // Both ends must belong to the caller.
+  const [source, destination] = await Promise.all([
+    prisma.source.findFirst({ where: { id: parsed.sourceId, userId } }),
+    prisma.destination.findFirst({ where: { id: parsed.destinationId, userId } }),
+  ]);
+  if (!source || !destination) throw new Error("not found");
+
+  const existing = await prisma.route.findUnique({
+    where: { sourceId_destinationId: { sourceId: parsed.sourceId, destinationId: parsed.destinationId } },
+  });
+  if (existing) throw new RouteConflictError("conflict: route already exists");
+
+  const created = await prisma.route.create({
+    data: { sourceId: parsed.sourceId, destinationId: parsed.destinationId, enabled: parsed.enabled },
+  });
+  return toDTO(created);
+}
+
+export async function listRoutes(
+  userId: string,
+  page: Page,
+): Promise<{ data: RouteDTO[]; nextCursor: string | null }> {
+  const rows = await prisma.route.findMany({
+    where: { source: { userId } },
+    orderBy: { createdAt: "desc" },
+    take: page.limit,
+    ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
+  });
+  const nextCursor = rows.length === page.limit ? rows[rows.length - 1].id : null;
+  return { data: rows.map(toDTO), nextCursor };
+}
+
+export async function getRoute(userId: string, id: string): Promise<RouteDTO | null> {
+  const row = await prisma.route.findFirst({ where: { id, source: { userId } } });
+  return row ? toDTO(row) : null;
+}
+
+export async function updateRoute(
+  userId: string,
+  id: string,
+  input: RouteUpdateInput,
+): Promise<RouteDTO | null> {
+  const parsed = routeUpdateSchema.parse(input);
+  const existing = await prisma.route.findFirst({ where: { id, source: { userId } } });
+  if (!existing) return null;
+  const data: Record<string, unknown> = {};
+  if (parsed.enabled !== undefined) data.enabled = parsed.enabled;
+  if (Object.keys(data).length === 0) {
+    return toDTO(existing);
+  }
+  const updated = await prisma.route.update({ where: { id }, data });
+  return toDTO(updated);
+}
+
+export async function deleteRoute(userId: string, id: string): Promise<boolean> {
+  const existing = await prisma.route.findFirst({ where: { id, source: { userId } }, select: { id: true } });
+  if (!existing) return false;
+  await prisma.route.delete({ where: { id } });
+  return true;
+}
