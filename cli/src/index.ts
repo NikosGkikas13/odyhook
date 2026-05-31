@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 import { login } from "./commands/login.js";
+import { listen } from "./commands/listen.js";
 
 async function main(): Promise<void> {
   const [cmd] = process.argv.slice(2);
   switch (cmd) {
     case "login":
       await login();
+      break;
+    case "listen":
+      await listen(process.argv.slice(3));
       break;
     case undefined:
     case "help":
