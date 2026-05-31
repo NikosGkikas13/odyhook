@@ -23,6 +23,17 @@ export const GET = withApiAuth(async (req, auth) => {
   const sub = getConnection().duplicate();
   const encoder = new TextEncoder();
 
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  const cleanup = async () => {
+    if (heartbeat) clearInterval(heartbeat);
+    try {
+      await sub.unsubscribe();
+      await sub.quit();
+    } catch {
+      /* already closed */
+    }
+  };
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (evt: LiveEvent) => {
@@ -70,33 +81,27 @@ export const GET = withApiAuth(async (req, auth) => {
         }
       });
 
-      const heartbeat = setInterval(() => {
-        controller.enqueue(encoder.encode(`: ping\n\n`));
+      heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(`: ping\n\n`));
+        } catch {
+          // Controller already closed/cancelled — stop and tear down.
+          void cleanup();
+        }
       }, HEARTBEAT_MS);
 
-      const close = async () => {
-        clearInterval(heartbeat);
-        try {
-          await sub.unsubscribe();
-          await sub.quit();
-        } catch {
-          /* already closed */
-        }
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      };
-
-      req.signal.addEventListener("abort", () => void close());
+      req.signal.addEventListener("abort", () => {
+        void cleanup().then(() => {
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+        });
+      });
     },
     async cancel() {
-      try {
-        await sub.quit();
-      } catch {
-        /* already closed */
-      }
+      await cleanup();
     },
   });
 
