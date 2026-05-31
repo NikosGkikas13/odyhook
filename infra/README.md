@@ -34,6 +34,12 @@ Notable endpoints beyond the ingest path:
   while disconnected via the `Last-Event-ID` header on reconnect. Caddy must pass it through
   unbuffered (the response sets `X-Accel-Buffering: no`).
 
+- **`POST /api/v1/fixtures`** generates a realistic test payload from a plain-English
+  description for the `ody trigger --generate` command. It runs server-side using the
+  authenticated user's BYOK Anthropic key (`anthropicFor`), grounded on up to 5 recent
+  events for the source. It generates only — the CLI delivers the result through the normal
+  `/api/ingest/<slug>` path.
+
 ---
 
 ## Tech stack (production)
