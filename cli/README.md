@@ -52,3 +52,24 @@ cat payload.json | ody trigger gh-prod --data -
 # Replay a stored event by id (creates a new event)
 ody trigger gh-prod --replay evt_abc123
 ```
+
+## Generate test events with AI
+
+Describe the event you want in plain English and let your instance's Claude key
+(Settings → API Keys) write a realistic payload for you, grounded in the source's
+recent real events:
+
+```sh
+ody trigger gh-prod --generate "a push to main with two commits from a new contributor"
+```
+
+Preview without sending (prints the fixture only):
+
+```sh
+ody trigger gh-prod --generate "a stripe payment_intent.succeeded for $50" --dry-run
+```
+
+Generation runs server-side using your own BYOK Anthropic key — the CLI never sees it.
+The generated body is delivered through the same ingest path as `--data`, so if the
+source has signature verification enabled the unsigned fixture is rejected just like a
+hand-written `--data` payload.

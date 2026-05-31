@@ -4,6 +4,7 @@ import {
   evaluateFilter,
   type FilterAst,
 } from "@/lib/filters/evaluator";
+import { extractJsonText } from "./json";
 
 // Turn a plain-English routing rule into a deterministic filter AST.
 // The AST is evaluated at delivery time (see filters/evaluator.ts) — Claude is
@@ -74,13 +75,7 @@ export async function compileRule(
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("Claude returned no text content");
   }
-  let raw = textBlock.text.trim();
-  if (raw.startsWith("```")) {
-    raw = raw
-      .replace(/^```(?:json)?\n/, "")
-      .replace(/\n```$/, "")
-      .trim();
-  }
+  const raw = extractJsonText(textBlock.text);
 
   let parsed: unknown;
   try {
