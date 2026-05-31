@@ -25,9 +25,11 @@ const HOP_BY_HOP = new Set([
   "proxy-authenticate",
 ]);
 
-export function filterHeaders(h: Record<string, string>): Record<string, string> {
+export function filterHeaders(
+  h: Record<string, string> | undefined | null,
+): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(h)) {
+  for (const [k, v] of Object.entries(h ?? {})) {
     if (!HOP_BY_HOP.has(k.toLowerCase())) out[k] = v;
   }
   return out;
