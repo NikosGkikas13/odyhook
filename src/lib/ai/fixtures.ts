@@ -49,6 +49,10 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
   const parts = [`Describe the event to generate: ${prompt}`];
   if (verifyStyle) parts.push(`Provider hint: ${verifyStyle}`);
   if (samples.length > 0) {
+    // Sample bodies are untrusted external webhook content embedded into the
+    // prompt. The trust boundary holds because the output must still parse as
+    // JSON and the user reviews it (and can --dry-run) before anything is sent;
+    // worst case is a different-but-valid payload, not code execution.
     // Cap each sample individually so we never feed the model a body that was
     // truncated mid-token (which would corrupt the grounding context).
     const MAX_SAMPLE_CHARS = 1200; // ~1 KB each; 5 × 1200 ≈ 6000 total
