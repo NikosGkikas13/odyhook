@@ -3,9 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
-// Model constants — override via env in production if needed.
-export const MODEL_DEFAULT = "claude-sonnet-4-6";
-export const MODEL_CHEAP = "claude-haiku-4-5-20251001";
+export { MODEL_DEFAULT, MODEL_CHEAP } from "@/lib/ai/models";
 
 /**
  * Load a user's decrypted Anthropic API key, or null if they haven't set one.
