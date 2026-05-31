@@ -3,6 +3,15 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { extractJsonText } from "./json";
 import { MODEL_DEFAULT } from "./models";
 
+/** Thrown when the model's output can't be used as a fixture (a user-facing,
+ *  not infrastructure, failure). The API maps this to 400; anything else is a 500. */
+export class FixtureGenerationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "FixtureGenerationError";
+  }
+}
+
 const SYSTEM_PROMPT = `You generate a single realistic webhook payload, as JSON, for testing a developer's integration.
 
 Rules:
@@ -62,7 +71,7 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    throw new Error("the model did not return valid JSON (no text content)");
+    throw new FixtureGenerationError("the model did not return valid JSON (no text content)");
   }
 
   const raw = extractJsonText(textBlock.text);
@@ -70,7 +79,7 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("the model did not return valid JSON — try rephrasing the description");
+    throw new FixtureGenerationError("the model did not return valid JSON — try rephrasing the description");
   }
 
   return {
