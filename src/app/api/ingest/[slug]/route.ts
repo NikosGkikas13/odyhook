@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
+import { publishEvent } from "@/lib/events-pubsub";
 import { verifySignature, type VerifyStyle } from "@/lib/hmac";
 import { computeIdempotencyKey } from "@/lib/idempotency";
 import { getDeliveryQueue } from "@/lib/queue";
@@ -255,6 +256,16 @@ export async function POST(
       queue.add("deliver", { deliveryId: d.id }),
     ),
   );
+
+  // Push to any connected `ody listen` CLIs. Fire-and-forget — a pub/sub
+  // failure must never turn a successful ingest into an error.
+  void publishEvent(source.id, {
+    id: event.id,
+    method: event.method,
+    headersJson: event.headersJson as Record<string, string>,
+    bodyRaw: event.bodyRaw,
+    receivedAt: event.receivedAt.toISOString(),
+  });
 
   return NextResponse.json(
     { ok: true, eventId: event.id, deliveries: event.deliveries.length },

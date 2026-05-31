@@ -1,0 +1,20 @@
+{
+  "name": "@odyhook/cli",
+  "version": "0.1.0",
+  "description": "Odyhook CLI — stream webhooks to your local machine.",
+  "type": "module",
+  "bin": { "ody": "./dist/index.js" },
+  "engines": { "node": ">=20" },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.0.0"
+  }
+}
