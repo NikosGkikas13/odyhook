@@ -38,6 +38,7 @@ function printUsage(): void {
       "  ody listen --source <slug> --forward <url> [--since <dur>]",
       "  ody trigger <slug> --data @file.json [--header K:V]...",
       "  ody trigger <slug> --replay <eventId>",
+      '  ody trigger <slug> --generate "<description>" [--dry-run]',
     ].join("\n"),
   );
 }
