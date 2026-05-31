@@ -26,6 +26,14 @@ External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The
 
 Five running containers in production. Three external services (Resend, Cloudflare R2, Sentry). One cron file. Everything deployed via GitHub Actions on push to `main`.
 
+Notable endpoints beyond the ingest path:
+
+- **`GET /api/v1/listen?source=<slug>`** is a Server-Sent Events stream consumed by the `ody`
+  CLI (in `cli/`). Ingest publishes each persisted event to a Redis channel `events:<sourceId>`;
+  this endpoint subscribes and streams events to connected CLIs, backfilling events missed
+  while disconnected via the `Last-Event-ID` header on reconnect. Caddy must pass it through
+  unbuffered (the response sets `X-Accel-Buffering: no`).
+
 ---
 
 ## Tech stack (production)
