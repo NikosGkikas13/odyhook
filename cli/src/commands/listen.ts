@@ -1,9 +1,10 @@
 import { parseArgs } from "node:util";
 
-import { loadConfig } from "../config.js";
-import { apiUrl, authHeaders } from "../http.js";
+import { loadConfig, type Config } from "../config.js";
+import { apiUrl, authHeaders, resolveSourceId } from "../http.js";
 import { SSEParser } from "../sse.js";
 import { forwardEvent, type EventPayload, type ForwardResult } from "../forward.js";
+import { parseDuration } from "../duration.js";
 
 type Forwarder = (e: EventPayload) => Promise<ForwardResult>;
 
@@ -43,6 +44,53 @@ export async function consumeStream(
   return lastId;
 }
 
+type EventListRow = { id: string; sourceId: string; receivedAt: string };
+
+/**
+ * Replay this source's events from the last `durationMs` window, oldest-first,
+ * before going live. Pages /api/v1/events (which isn't source-filtered server
+ * side, so we filter by sourceId here) and fetches each matching event's body.
+ */
+export async function backfillSince(
+  cfg: Config,
+  sourceId: string,
+  durationMs: number,
+  forward: Forwarder,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const cutoff = Date.now() - durationMs;
+  const matches: EventListRow[] = [];
+  let cursor: string | null = null;
+
+  outer: do {
+    const u = new URL(apiUrl(cfg, "/api/v1/events"));
+    u.searchParams.set("limit", "100");
+    if (cursor) u.searchParams.set("cursor", cursor);
+    const res = await fetchImpl(u.toString(), { headers: authHeaders(cfg) });
+    if (!res.ok) break;
+    const body = (await res.json()) as { data: EventListRow[]; nextCursor: string | null };
+    for (const row of body.data) {
+      // listEvents returns newest-first; once we pass the cutoff we can stop.
+      if (new Date(row.receivedAt).getTime() < cutoff) break outer;
+      if (row.sourceId === sourceId) matches.push(row);
+    }
+    cursor = body.nextCursor;
+  } while (cursor);
+
+  // Oldest-first so the local app sees them in arrival order.
+  matches.reverse();
+  for (const row of matches) {
+    const res = await fetchImpl(apiUrl(cfg, `/api/v1/events/${row.id}`), {
+      headers: authHeaders(cfg),
+    });
+    if (!res.ok) continue;
+    const payload = (await res.json()) as EventPayload;
+    const r = await forward(payload);
+    if (r.ok) console.log(`↺ ${r.status}  ${r.ms}ms  ${payload.id}`);
+    else console.error(`↺✗ ${r.error}  ${payload.id}`);
+  }
+}
+
 export async function listen(argv: string[]): Promise<void> {
   const { values } = parseArgs({
     args: argv,
@@ -65,6 +113,23 @@ export async function listen(argv: string[]): Promise<void> {
   }
 
   const forward: Forwarder = (e) => forwardEvent(e, values.forward!);
+
+  if (values.since) {
+    const durationMs = parseDuration(values.since);
+    if (durationMs === null) {
+      console.error(`Invalid --since value: ${values.since} (use e.g. 30s, 5m, 2h, 1d)`);
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const sourceId = await resolveSourceId(cfg, values.source);
+      console.log(`Replaying the last ${values.since} of "${values.source}"…`);
+      await backfillSince(cfg, sourceId, durationMs, forward);
+    } catch (err) {
+      console.error(`Backfill failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   let lastEventId: string | undefined;
   let backoff = 1000;
 
