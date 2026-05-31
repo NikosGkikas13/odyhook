@@ -102,8 +102,10 @@ Ordering is preserved per source (single subscription, sequential emit).
      `content-length`, `connection`, `transfer-encoding`, etc.) which are recomputed by
      the HTTP client,
    - body = `bodyRaw` verbatim.
-   So the local app receives byte-for-byte what the provider sent — its own signature
-   verification still works.
+   So the local app receives the provider's method/body and headers. **Caveat:** ingest
+   redacts credential + signature headers (`stripe-signature`, `x-hub-signature-256`, …)
+   before persisting, so those arrive `[redacted]` — local HMAC signature verification
+   must be disabled for the forward target.
 5. Print one status line per event, e.g. `✓ 200  42ms  evt_abc` / `✗ ECONNREFUSED evt_abc`.
 6. A failed local POST is logged but **does not** stop the stream.
 7. Events forwarded **sequentially** to preserve order.

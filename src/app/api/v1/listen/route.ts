@@ -74,10 +74,17 @@ export const GET = withApiAuth(async (req, auth) => {
 
       await sub.subscribe(eventChannel(source.id));
       sub.on("message", (_chan, msg) => {
+        let evt: LiveEvent;
         try {
-          send(JSON.parse(msg) as LiveEvent);
+          evt = JSON.parse(msg) as LiveEvent;
         } catch {
-          /* ignore malformed messages */
+          return; // ignore malformed messages
+        }
+        try {
+          send(evt);
+        } catch {
+          // Controller already closed/cancelled — tear down (symmetric with heartbeat).
+          void cleanup();
         }
       });
 

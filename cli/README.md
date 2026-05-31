@@ -33,9 +33,14 @@ Replay recent history first, then go live:
 ody listen --source gh-prod --forward http://localhost:3000/webhook --since 1h
 ```
 
-Events are forwarded with their original method, headers (minus hop-by-hop), and raw body,
-so your app's signature verification still works. The stream auto-reconnects and resumes
-from the last event it saw.
+Events are forwarded with their original method, raw body, and headers (minus hop-by-hop).
+The stream auto-reconnects and resumes from the last event it saw.
+
+> **Signature headers are redacted.** Odyhook scrubs credentials and provider signature
+> headers (`stripe-signature`, `x-hub-signature-256`, etc.) before persisting an event, so
+> forwarded/replayed requests carry `[redacted]` in those headers. A local handler that
+> verifies HMAC signatures will reject them — disable signature verification for the local
+> target while developing with `ody listen`/`ody trigger --replay`.
 
 ## Trigger test events
 
