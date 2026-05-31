@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { login } from "./commands/login.js";
 import { listen } from "./commands/listen.js";
+import { trigger } from "./commands/trigger.js";
 
 async function main(): Promise<void> {
   const [cmd] = process.argv.slice(2);
@@ -10,6 +11,9 @@ async function main(): Promise<void> {
       break;
     case "listen":
       await listen(process.argv.slice(3));
+      break;
+    case "trigger":
+      await trigger(process.argv.slice(3));
       break;
     case undefined:
     case "help":

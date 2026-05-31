@@ -21,7 +21,11 @@ export type DeliveryDTO = {
   createdAt: string;
 };
 
-export type EventDetailDTO = EventDTO & { bodyRaw: string; deliveries: DeliveryDTO[] };
+export type EventDetailDTO = EventDTO & {
+  bodyRaw: string;
+  headersJson: Record<string, string>;
+  deliveries: DeliveryDTO[];
+};
 
 type EventRow = {
   id: string;
@@ -66,6 +70,7 @@ export async function getEvent(userId: string, id: string): Promise<EventDetailD
   return {
     ...toDTO(row),
     bodyRaw: row.bodyRaw,
+    headersJson: (row.headersJson ?? {}) as Record<string, string>,
     deliveries: row.deliveries.map((d) => ({
       id: d.id,
       destinationId: d.destinationId,
