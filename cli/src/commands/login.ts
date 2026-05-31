@@ -13,6 +13,11 @@ export async function login(): Promise<void> {
       process.exitCode = 1;
       return;
     }
+    if (!host.startsWith("https://") && !host.startsWith("http://")) {
+      console.error("Host must start with https:// or http://");
+      process.exitCode = 1;
+      return;
+    }
     if (!token.startsWith("ody_")) {
       console.error("That doesn't look like an Odyhook API token (should start with ody_).");
       process.exitCode = 1;
