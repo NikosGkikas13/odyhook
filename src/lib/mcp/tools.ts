@@ -176,9 +176,9 @@ export const tools: ToolDef[] = [
     inputSchema: routeCreateSchema.extend({ filter: z.unknown().optional() }),
     handler: async (u, i) => {
       const { filter, ...routeInput } = i;
+      const ast = filter !== undefined ? validateAstOrThrow(filter) : undefined;
       const route = await createRoute(u, routeInput);
-      if (filter !== undefined) {
-        const ast = validateAstOrThrow(filter);
+      if (ast !== undefined) {
         const ok = await setRouteFilter(u, route.id, ast);
         if (!ok) throw new Error("route not found");
         return { ...route, hasFilter: true };

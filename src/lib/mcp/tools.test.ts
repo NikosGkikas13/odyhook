@@ -54,4 +54,21 @@ describe("mcp tool registry", () => {
     const row = await prisma.route.findUnique({ where: { id: res.id } });
     expect(row?.filterAst).toEqual({ eq: ["$.type", "payment"] });
   });
+
+  it("create_route rejects an invalid filter without creating a route", async () => {
+    const user = await prisma.user.create({ data: { email: `${uniq("mcpbad")}@test.local` } });
+    const source = await prisma.source.create({ data: { userId: user.id, name: "s", slug: uniq("mcpbad-s") } });
+    const dest = await prisma.destination.create({ data: { userId: user.id, name: "d", url: "https://example.com/h" } });
+
+    await expect(
+      findTool("create_route")!.handler(user.id, {
+        sourceId: source.id,
+        destinationId: dest.id,
+        filter: { bogus: true },
+      }),
+    ).rejects.toThrow(/invalid filter/i);
+
+    const routes = await prisma.route.findMany({ where: { sourceId: source.id } });
+    expect(routes).toHaveLength(0);
+  });
 });
