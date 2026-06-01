@@ -112,19 +112,36 @@ export async function explainEventDiff(
     );
   }
 
+  // Fix 1: JSON.parse("null") / "123" / etc. succeeds but yields a non-object.
+  // Surface a clean EventDiffError instead of a downstream TypeError.
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new EventDiffError("the model did not return valid JSON — try again");
+  }
+
   const p = parsed as { summary?: unknown; changes?: unknown };
+  // Fix 2: null / primitive items inside the changes array would crash .map.
+  // Fix 3: enforce the from/to contract — drop the semantically-invalid side.
   const changes: DiffChange[] = Array.isArray(p.changes)
-    ? p.changes.map((c) => {
-        const ch = c as Record<string, unknown>;
-        const kind =
-          ch.kind === "added" || ch.kind === "removed" ? ch.kind : "changed";
-        return {
-          path: String(ch.path ?? ""),
-          kind,
-          ...(ch.from !== undefined ? { from: String(ch.from) } : {}),
-          ...(ch.to !== undefined ? { to: String(ch.to) } : {}),
-        };
-      })
+    ? p.changes
+        .filter(
+          (c): c is Record<string, unknown> =>
+            c !== null && typeof c === "object",
+        )
+        .map((c) => {
+          const ch = c as Record<string, unknown>;
+          const kind =
+            ch.kind === "added" || ch.kind === "removed" ? ch.kind : "changed";
+          return {
+            path: String(ch.path ?? ""),
+            kind,
+            ...(ch.from !== undefined && kind !== "added"
+              ? { from: String(ch.from) }
+              : {}),
+            ...(ch.to !== undefined && kind !== "removed"
+              ? { to: String(ch.to) }
+              : {}),
+          };
+        })
     : [];
 
   return {

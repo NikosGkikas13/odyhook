@@ -69,6 +69,26 @@ describe("explainEventDiff", () => {
     // Neither embedded body should carry the full 20k payload.
     expect(sent.length).toBeLessThan(20000);
   });
+
+  it("throws EventDiffError when model returns the literal null", async () => {
+    const { client } = fakeClient("null");
+    await expect(
+      explainEventDiff({ anthropic: client, bodyA: "{}", bodyB: "{}" }),
+    ).rejects.toThrow(EventDiffError);
+  });
+
+  it("filters null items in the changes array and enforces from/to contract", async () => {
+    const { client } = fakeClient(
+      '{"summary":"x","changes":[null,{"path":"$.a","kind":"added","to":"1"}]}',
+    );
+    const res = await explainEventDiff({
+      anthropic: client,
+      bodyA: "{}",
+      bodyB: '{"a":"1"}',
+    });
+    expect(res.changes).toHaveLength(1);
+    expect(res.changes[0]).toEqual({ path: "$.a", kind: "added", to: "1" });
+  });
 });
 
 describe("canonicalPair", () => {
@@ -83,5 +103,13 @@ describe("canonicalPair", () => {
       olderId: "old",
       newerId: "new",
     });
+  });
+
+  it("breaks ties by id when receivedAt is equal", () => {
+    const t = new Date("2026-01-01");
+    const a = { id: "aaa", receivedAt: t };
+    const b = { id: "bbb", receivedAt: t };
+    expect(canonicalPair(b, a)).toEqual({ olderId: "aaa", newerId: "bbb" });
+    expect(canonicalPair(a, b)).toEqual({ olderId: "aaa", newerId: "bbb" });
   });
 });
