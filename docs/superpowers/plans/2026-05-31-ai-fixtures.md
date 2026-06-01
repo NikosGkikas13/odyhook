@@ -1,5 +1,12 @@
 # AI Test-Fixture Generation (`ody trigger --generate`) Implementation Plan
 
+> **Status: ✅ Complete (2026-05-31).** Tasks 1–5 implemented via subagent-driven development,
+> each through two-stage review (spec + code quality) plus a final whole-feature review
+> (verdict: ready to merge). Verified: 304 server tests + 27 CLI tests green, both `tsc` clean,
+> `npm run build` passes with `/api/v1/fixtures` registered. Shipped in **PR #7**. Task 6
+> (manual smoke test) remains for the maintainer to run against the dev stack with a real
+> Anthropic key.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a developer run `ody trigger <slug> --generate "<description>"` to have Claude generate a realistic JSON webhook fixture (grounded in the source's real event history) and deliver it through the existing ingest path.
@@ -37,7 +44,7 @@ Design spec: [docs/superpowers/specs/2026-05-31-ai-fixtures-design.md](../specs/
 - Create: `src/lib/ai/json.ts`, `src/lib/ai/json.test.ts`
 - Modify: `src/lib/ai/rule-compiler.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/ai/json.test.ts`:
 
@@ -64,12 +71,12 @@ describe("extractJsonText", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `npx vitest run src/lib/ai/json.test.ts`
 Expected: FAIL with "Cannot find module './json'".
 
-- [ ] **Step 3: Implement the helper**
+- [x] **Step 3: Implement the helper**
 
 Create `src/lib/ai/json.ts`:
 
@@ -91,12 +98,12 @@ export function extractJsonText(text: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the test and confirm it passes**
+- [x] **Step 4: Run the test and confirm it passes**
 
 Run: `npx vitest run src/lib/ai/json.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Refactor the rule compiler to use it**
+- [x] **Step 5: Refactor the rule compiler to use it**
 
 In [src/lib/ai/rule-compiler.ts](../../../src/lib/ai/rule-compiler.ts), add this import below the existing imports at the top:
 
@@ -122,12 +129,12 @@ with:
   const raw = extractJsonText(textBlock.text);
 ```
 
-- [ ] **Step 6: Confirm the server build still passes**
+- [x] **Step 6: Confirm the server build still passes**
 
 Run: `npx tsc --noEmit`
 Expected: no type errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/ai/json.ts src/lib/ai/json.test.ts src/lib/ai/rule-compiler.ts
@@ -143,7 +150,7 @@ git commit -m "refactor(ai): extract shared extractJsonText helper"
 
 The generator takes an **injected** Anthropic client so it is unit-testable with a fake — no network, no real key. The route (Task 3) constructs the real client and passes it in.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/ai/fixtures.test.ts`:
 
@@ -198,12 +205,12 @@ describe("generateFixture", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `npx vitest run src/lib/ai/fixtures.test.ts`
 Expected: FAIL with "Cannot find module './fixtures'".
 
-- [ ] **Step 3: Implement the generator**
+- [x] **Step 3: Implement the generator**
 
 Create `src/lib/ai/fixtures.ts`:
 
@@ -287,17 +294,17 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
 }
 ```
 
-- [ ] **Step 4: Run the test and confirm it passes**
+- [x] **Step 4: Run the test and confirm it passes**
 
 Run: `npx vitest run src/lib/ai/fixtures.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Confirm the server build still passes**
+- [x] **Step 5: Confirm the server build still passes**
 
 Run: `npx tsc --noEmit`
 Expected: no type errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/ai/fixtures.ts src/lib/ai/fixtures.test.ts
@@ -317,7 +324,7 @@ check the user has an Anthropic key (null → 400, network-free) → construct t
 the CLI flow test (Task 4) and the manual smoke test (Task 6) rather than here — these tests
 cover every branch that short-circuits *before* the Claude call.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/app/api/v1/fixtures/route.test.ts`:
 
@@ -386,12 +393,12 @@ describe("POST /api/v1/fixtures", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `npx vitest run src/app/api/v1/fixtures/route.test.ts`
 Expected: FAIL with "Cannot find module './route'".
 
-- [ ] **Step 3: Implement the route**
+- [x] **Step 3: Implement the route**
 
 Create `src/app/api/v1/fixtures/route.ts`:
 
@@ -453,17 +460,17 @@ export const POST = withApiAuth(async (req, auth) => {
 });
 ```
 
-- [ ] **Step 4: Run the test and confirm it passes**
+- [x] **Step 4: Run the test and confirm it passes**
 
 Run: `npx vitest run src/app/api/v1/fixtures/route.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Confirm the server build still passes**
+- [x] **Step 5: Confirm the server build still passes**
 
 Run: `npx tsc --noEmit`
 Expected: no type errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/api/v1/fixtures/
@@ -477,7 +484,7 @@ git commit -m "feat(api): POST /api/v1/fixtures — AI fixture generation endpoi
 **Files:**
 - Modify: `cli/src/commands/trigger.ts`, `cli/src/commands/trigger.test.ts`, `cli/src/index.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `cli/src/commands/trigger.test.ts`:
 
@@ -554,12 +561,12 @@ describe("generateAndSend", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and confirm they fail**
+- [x] **Step 2: Run the tests and confirm they fail**
 
 Run: `cd cli && npx vitest run src/commands/trigger.test.ts`
 Expected: FAIL with "resolveTriggerMode is not exported" (or similar).
 
-- [ ] **Step 3: Implement the helpers and wire the flow**
+- [x] **Step 3: Implement the helpers and wire the flow**
 
 Edit `cli/src/commands/trigger.ts`.
 
@@ -714,12 +721,12 @@ Also update the early usage hint near the top of `trigger()` (the `if (!slug)` b
     console.error("Usage: ody trigger <slug> (--data @file.json | --replay <eventId> | --generate \"<description>\") [--dry-run]");
 ```
 
-- [ ] **Step 4: Run the tests and confirm they pass**
+- [x] **Step 4: Run the tests and confirm they pass**
 
 Run: `cd cli && npx vitest run src/commands/trigger.test.ts`
 Expected: PASS (all trigger tests, including the new ones).
 
-- [ ] **Step 5: Update the dispatcher usage text**
+- [x] **Step 5: Update the dispatcher usage text**
 
 In `cli/src/index.ts`, replace the two `ody trigger …` lines in `printUsage()` with three:
 
@@ -729,12 +736,12 @@ In `cli/src/index.ts`, replace the two `ody trigger …` lines in `printUsage()`
       '  ody trigger <slug> --generate "<description>" [--dry-run]',
 ```
 
-- [ ] **Step 6: Confirm the CLI build passes**
+- [x] **Step 6: Confirm the CLI build passes**
 
 Run: `cd cli && npx tsc --noEmit`
 Expected: no type errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add cli/src/commands/trigger.ts cli/src/commands/trigger.test.ts cli/src/index.ts
@@ -748,7 +755,7 @@ git commit -m "feat(cli): ody trigger --generate (AI fixtures) + --dry-run"
 **Files:**
 - Modify: `cli/README.md`, `infra/README.md`
 
-- [ ] **Step 1: Add a "Generate test events" section to the CLI README**
+- [x] **Step 1: Add a "Generate test events" section to the CLI README**
 
 In [cli/README.md](../../../cli/README.md), immediately after the existing "Trigger test events"
 section, add:
@@ -776,7 +783,7 @@ source has signature verification enabled the unsigned fixture is rejected just 
 hand-written `--data` payload.
 ```
 
-- [ ] **Step 2: Add an infra note for the endpoint**
+- [x] **Step 2: Add an infra note for the endpoint**
 
 In [infra/README.md](../../../infra/README.md), near the existing `GET /api/v1/listen` bullet
 in the "Notable endpoints" area, add:
@@ -789,7 +796,7 @@ in the "Notable endpoints" area, add:
   `/api/ingest/<slug>` path.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add cli/README.md infra/README.md
