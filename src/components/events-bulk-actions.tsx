@@ -143,6 +143,7 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
   }
 
   function goCompare() {
+    if (selected.size !== 2) return;
     const [a, b] = Array.from(selected);
     router.push(`/events/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
   }
