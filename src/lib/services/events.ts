@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import type { Page } from "@/lib/api/respond";
+import { Prisma } from "@/generated/prisma/client";
+
+export type EventFilter = { sourceId?: string; since?: string; until?: string };
 
 export type EventDTO = {
   id: string;
@@ -36,6 +39,12 @@ type EventRow = {
   idempotencyKey: string | null;
 };
 
+function toDate(label: string, value: string): Date {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new Error(`invalid ${label} timestamp: ${value}`);
+  return d;
+}
+
 function toDTO(e: EventRow): EventDTO {
   return {
     id: e.id,
@@ -50,9 +59,22 @@ function toDTO(e: EventRow): EventDTO {
 export async function listEvents(
   userId: string,
   page: Page,
+  filter: EventFilter = {},
 ): Promise<{ data: EventDTO[]; nextCursor: string | null }> {
+  const where: Prisma.EventWhereInput = {
+    source: { userId },
+    ...(filter.sourceId ? { sourceId: filter.sourceId } : {}),
+    ...(filter.since || filter.until
+      ? {
+          receivedAt: {
+            ...(filter.since ? { gte: toDate("since", filter.since) } : {}),
+            ...(filter.until ? { lte: toDate("until", filter.until) } : {}),
+          },
+        }
+      : {}),
+  };
   const rows = await prisma.event.findMany({
-    where: { source: { userId } },
+    where,
     orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
     take: page.limit,
     ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
