@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
 import { compileRule } from "@/lib/ai/rule-compiler";
+import { setRouteFilter, clearRouteFilter } from "@/lib/services/routes";
 import { validateFilterAst, type FilterAst } from "@/lib/filters/evaluator";
 
 async function requireUserId(): Promise<string> {
@@ -90,13 +90,8 @@ export async function saveRule(formData: FormData) {
     throw new Error("must provide prompt or astJson");
   }
 
-  await prisma.route.update({
-    where: { id: routeId },
-    data: {
-      filterAst: ast as unknown as object,
-      filterPrompt: prompt || null,
-    },
-  });
+  const saved = await setRouteFilter(userId, routeId, ast, prompt || null);
+  if (!saved) throw new Error("route not found");
 
   revalidatePath(`/routes/${routeId}/filter`);
   revalidatePath("/routes");
@@ -106,10 +101,7 @@ export async function deleteRule(formData: FormData) {
   const userId = await requireUserId();
   const routeId = String(formData.get("routeId"));
   await loadRoute(userId, routeId);
-  await prisma.route.update({
-    where: { id: routeId },
-    data: { filterAst: Prisma.DbNull, filterPrompt: null },
-  });
+  await clearRouteFilter(userId, routeId);
   revalidatePath(`/routes/${routeId}/filter`);
   revalidatePath("/routes");
 }
