@@ -207,6 +207,23 @@ model AiDiagnosis {
   delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
 }
 
+// M8 — cached Claude diff between two events on the same source.
+// Keyed on (eventAId, eventBId) so repeated requests hit the cache.
+model AiEventDiff {
+  id        String   @id @default(cuid())
+  eventAId  String // older event (by receivedAt)
+  eventBId  String // newer event
+  summary   String
+  changes   Json // DiffChange[] — { path, kind, from?, to? }
+  modelUsed String
+  createdAt DateTime @default(now())
+
+  eventA Event @relation("DiffEventA", fields: [eventAId], references: [id], onDelete: Cascade)
+  eventB Event @relation("DiffEventB", fields: [eventBId], references: [id], onDelete: Cascade)
+
+  @@unique([eventAId, eventBId])
+}
+
 // M7 — most recent structural fingerprint per source, used to detect drift
 // when nightly sampling compares the current shape against this.
 model SchemaFingerprint {
@@ -237,6 +254,8 @@ model Event {
 
   source     Source     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   deliveries Delivery[]
+  diffsAsA   AiEventDiff[] @relation("DiffEventA")
+  diffsAsB   AiEventDiff[] @relation("DiffEventB")
 
   @@unique([sourceId, idempotencyKey])
   @@index([sourceId, receivedAt])
