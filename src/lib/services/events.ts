@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Page } from "@/lib/api/respond";
+import { toDate } from "@/lib/dates";
 import { Prisma } from "@/generated/prisma/client";
 
 export type EventFilter = { sourceId?: string; since?: string; until?: string };
@@ -38,12 +39,6 @@ type EventRow = {
   remoteIp: string | null;
   idempotencyKey: string | null;
 };
-
-function toDate(label: string, value: string): Date {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) throw new Error(`invalid ${label} timestamp: ${value}`);
-  return d;
-}
 
 function toDTO(e: EventRow): EventDTO {
   return {
