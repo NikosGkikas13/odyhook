@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
+import { validateFilterAst, type FilterAst } from "@/lib/filters/evaluator";
 
 import { prisma } from "@/lib/prisma";
 import type { Page } from "@/lib/api/respond";
@@ -119,5 +121,39 @@ export async function deleteRoute(userId: string, id: string): Promise<boolean> 
   const existing = await prisma.route.findFirst({ where: { id, source: { userId } }, select: { id: true } });
   if (!existing) return false;
   await prisma.route.delete({ where: { id } });
+  return true;
+}
+
+/** Persist (set or replace) a route's filter AST. Returns false if the route isn't the user's. */
+export async function setRouteFilter(
+  userId: string,
+  routeId: string,
+  ast: FilterAst,
+  prompt?: string | null,
+): Promise<boolean> {
+  const existing = await prisma.route.findFirst({
+    where: { id: routeId, source: { userId } },
+    select: { id: true },
+  });
+  if (!existing) return false;
+  const validated = validateFilterAst(ast);
+  await prisma.route.update({
+    where: { id: routeId },
+    data: { filterAst: validated as unknown as object, filterPrompt: prompt ?? null },
+  });
+  return true;
+}
+
+/** Remove a route's filter. Returns false if the route isn't the user's. */
+export async function clearRouteFilter(userId: string, routeId: string): Promise<boolean> {
+  const existing = await prisma.route.findFirst({
+    where: { id: routeId, source: { userId } },
+    select: { id: true },
+  });
+  if (!existing) return false;
+  await prisma.route.update({
+    where: { id: routeId },
+    data: { filterAst: Prisma.DbNull, filterPrompt: null },
+  });
   return true;
 }

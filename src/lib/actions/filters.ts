@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
-import { compileRule } from "@/lib/ai/rule-compiler";
+import { compileFilterForSource } from "@/lib/services/filters";
+import { setRouteFilter, clearRouteFilter } from "@/lib/services/routes";
 import { validateFilterAst, type FilterAst } from "@/lib/filters/evaluator";
 
 async function requireUserId(): Promise<string> {
@@ -37,27 +37,7 @@ export async function previewRule(
 }> {
   const userId = await requireUserId();
   const route = await loadRoute(userId, routeId);
-
-  const recent = await prisma.event.findMany({
-    where: { sourceId: route.sourceId },
-    orderBy: { receivedAt: "desc" },
-    take: 50,
-    select: { bodyRaw: true },
-  });
-  const samples: unknown[] = recent.map((e) => {
-    try {
-      return JSON.parse(e.bodyRaw);
-    } catch {
-      return { raw: e.bodyRaw };
-    }
-  });
-
-  const result = await compileRule(userId, prompt, samples);
-  return {
-    ast: result.ast,
-    matchedCount: result.matchedCount,
-    totalCount: result.totalCount,
-  };
+  return compileFilterForSource(userId, route.sourceId, prompt);
 }
 
 /**
@@ -90,13 +70,8 @@ export async function saveRule(formData: FormData) {
     throw new Error("must provide prompt or astJson");
   }
 
-  await prisma.route.update({
-    where: { id: routeId },
-    data: {
-      filterAst: ast as unknown as object,
-      filterPrompt: prompt || null,
-    },
-  });
+  const saved = await setRouteFilter(userId, routeId, ast, prompt || null);
+  if (!saved) throw new Error("route not found");
 
   revalidatePath(`/routes/${routeId}/filter`);
   revalidatePath("/routes");
@@ -106,10 +81,7 @@ export async function deleteRule(formData: FormData) {
   const userId = await requireUserId();
   const routeId = String(formData.get("routeId"));
   await loadRoute(userId, routeId);
-  await prisma.route.update({
-    where: { id: routeId },
-    data: { filterAst: Prisma.DbNull, filterPrompt: null },
-  });
+  await clearRouteFilter(userId, routeId);
   revalidatePath(`/routes/${routeId}/filter`);
   revalidatePath("/routes");
 }

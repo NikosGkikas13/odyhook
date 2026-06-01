@@ -56,6 +56,26 @@ Then:
 8. Open **Events** → the event appears; click it → delivery timeline shows the
    forwarded request. Click **Replay** to resend.
 
+## MCP server
+
+Odyhook exposes its sources, destinations, routes, events, and deliveries as MCP
+tools at `/api/mcp`, authenticated with an API token (Settings → API Tokens):
+
+```bash
+claude mcp add --transport http odyhook https://odyhook.dev/api/mcp \
+  --header "Authorization: Bearer ody_…"
+```
+
+(Use `http://localhost:3000/api/mcp` against a local dev server.) Then ask your
+agent things like *"show me failed deliveries for my Stripe source"* or *"create
+a route from gh-prod to slack-alerts filtering for pushes to main"*.
+
+Reads cover sources/destinations/routes/events/deliveries; safe writes cover
+create/update + pause/resume + route filters. `compile_filter` turns plain
+English into a filter AST and needs your Anthropic key. There are no destructive
+(delete) tools. The endpoint is a stateless Streamable-HTTP server — see
+`src/lib/mcp/` (tool registry + dispatch) and `src/app/api/mcp/route.ts`.
+
 ## Project layout
 
 ```

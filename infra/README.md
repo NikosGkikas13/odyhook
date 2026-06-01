@@ -40,6 +40,12 @@ Notable endpoints beyond the ingest path:
   events for the source. It generates only — the CLI delivers the result through the normal
   `/api/ingest/<slug>` path.
 
+- **`POST /api/mcp`** is the Model Context Protocol (Streamable HTTP) endpoint for
+  coding agents (e.g. Claude Code). It authenticates with an `ody_` API token (same
+  tokens as `/api/v1`) and exposes the read + safe-write tool surface over the existing
+  service layer — see `src/lib/mcp/` (tool registry + JSON-RPC dispatch) and
+  `src/app/api/mcp/route.ts`. Stateless; no session store. No destructive (delete) tools.
+
 ---
 
 ## Tech stack (production)
