@@ -142,6 +142,11 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
     }
   }
 
+  function goCompare() {
+    const [a, b] = Array.from(selected);
+    router.push(`/events/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+  }
+
   const busyAny = busy !== null || isPending;
   const nothingSelected = selected.size === 0;
   const actionsDisabled = busyAny || nothingSelected;
@@ -153,6 +158,19 @@ export function EventsBulkActions({ events }: { events: BulkEventRow[] }) {
           {selected.size} selected
         </span>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={goCompare}
+          disabled={busyAny || selected.size !== 2}
+          title={
+            selected.size === 2
+              ? "Explain what changed between the two selected events"
+              : "Select exactly two events to compare"
+          }
+          className="inline-flex h-8 items-center rounded-md border border-indigo-300 bg-indigo-50 px-3 text-xs font-medium text-indigo-900 hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-100"
+        >
+          Compare with AI
+        </button>
         <button
           type="button"
           onClick={runReplay}
