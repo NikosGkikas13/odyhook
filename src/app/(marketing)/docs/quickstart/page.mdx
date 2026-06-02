@@ -1,0 +1,36 @@
+export const metadata = {
+  title: "Quickstart — Odyhook",
+  description: "Create a source, send a test event, and wire a destination in minutes.",
+};
+
+# Quickstart
+
+## Create a source
+
+Sign in, then create a source. Each source gets its own ingest URL — copy it from the dashboard. It looks like:
+
+```
+https://odyhook.dev/api/ingest/<your-slug>
+```
+
+## Send a test event
+
+POST any JSON body to your ingest URL:
+
+```bash
+curl -X POST https://odyhook.dev/api/ingest/<your-slug> \
+  -H "content-type: application/json" \
+  -d '{"hello":"world"}'
+```
+
+## See it in the dashboard
+
+Events are stored raw, forever. Open the source in the dashboard to inspect headers and body — and replay any stored event with one click.
+
+## Wire a destination + route
+
+Create a destination (the downstream URL Odyhook should forward to), then add a route from your source to that destination. From then on, the worker forwards each matching event to the destination, retrying on failure.
+
+<Callout type="note">
+In local dev, magic-link sign-in emails go to MailHog at http://localhost:8025 — there's no real SMTP unless you configure it.
+</Callout>

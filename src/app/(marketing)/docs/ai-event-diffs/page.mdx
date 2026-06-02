@@ -1,0 +1,21 @@
+export const metadata = {
+  title: "AI event diffs — Odyhook",
+  description: "Compare two events and get a plain-English explanation of what changed.",
+};
+
+# AI event diffs
+
+When two webhook events look almost identical, AI event diffs tell you what actually changed — in plain English.
+
+## What it does
+
+Pick two events and Claude reads both payloads, then explains the differences in plain language: which fields were added, removed, or changed, and what that likely means. It's faster than eyeballing two raw JSON bodies side by side.
+
+## Where
+
+- The `/events/compare` page, which shows the two payloads next to the explanation.
+- The **Compare with AI** bulk action on the events page — select two events and run it directly.
+
+<Callout type="note">
+Results are cached per event-pair (the `AiEventDiff` model), so comparing the same two events again is instant and costs nothing extra. Like the other AI features, this is BYOK — it uses your own Anthropic key from Settings → API Keys.
+</Callout>

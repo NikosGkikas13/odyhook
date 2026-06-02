@@ -1,0 +1,21 @@
+export const metadata = {
+  title: "Idempotency — Odyhook",
+  description: "How Odyhook derives a dedupe key so retried webhooks aren't double-fired.",
+};
+
+# Idempotency
+
+At ingest time, Odyhook derives a stable per-source dedupe key for every incoming webhook. The first rule that yields a value wins:
+
+1. The `Idempotency-Key` request header, if present — an explicit caller-supplied key.
+2. The Stripe `id` field parsed from the JSON body, when the source's verify style is `stripe`. Stripe replays the same event with the same `id` on its own retries.
+3. The `X-GitHub-Delivery` header, when the source's verify style is `github`.
+4. Fallback: `sha256(body)` in hex — catches generic providers that retry the same payload with no identifier.
+
+The Stripe and GitHub rules are gated on the configured verify style on purpose: Odyhook trusts those fields only when the source is set up as that provider, so a different sender can't spoof them to collide with a future legitimate event.
+
+Uniqueness is enforced in Postgres by a `@@unique([sourceId, idempotencyKey])` constraint. When a webhook produces a `(sourceId, key)` pair that already exists, Odyhook returns the prior event instead of inserting a new one — so downstream destinations aren't fired twice for the same event.
+
+<Callout type="note">
+Providers re-send webhooks on their own retry schedules. This dedupe key is what stops those re-sends from fanning out into duplicate downstream deliveries.
+</Callout>
