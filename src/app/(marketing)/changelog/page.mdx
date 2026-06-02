@@ -1,0 +1,36 @@
+export const metadata = {
+  title: "Changelog — Odyhook",
+  description: "Reverse-chronological release notes for Odyhook.",
+};
+
+# Changelog
+
+Newest first. Each entry maps to a merged pull request.
+
+## Natural-language event search
+
+Search your stored events in plain English. Available in the dashboard, as `POST /api/v1/events/search`, and as the `search_events` MCP tool — all three share one compile-then-run engine that turns English into a structured query and executes it. (PR #10)
+
+## MCP server
+
+A stateless Streamable-HTTP endpoint at `POST /api/mcp` for coding agents. Authenticates with an `ody_` API token and exposes the read and safe-write tool surface, including the BYOK `compile_filter` tool. No delete tools. (PR #9)
+
+## AI-explained event diffs
+
+Compare two payloads and get a plain-English summary of what changed. Results are cached per pair so repeated comparisons are instant. (PR #8)
+
+## AI-generated test fixtures
+
+`ody trigger --generate "<desc>"` builds a realistic test payload from a plain-English description and delivers it through the normal ingest path. (PR #7)
+
+## CLI (ody)
+
+`ody listen` streams events to your laptop over Server-Sent Events; `ody trigger` sends new events or replays existing ones. (PR #6)
+
+## Public REST API
+
+A full CRUD REST API at `/api/v1` with API-token auth, cursor pagination, and an OpenAPI spec served at `/openapi.json`. (PR #5)
+
+## Metrics dashboard
+
+Throughput, success-rate, and latency widgets added to the overview, source, and destination pages. (PR #4)
