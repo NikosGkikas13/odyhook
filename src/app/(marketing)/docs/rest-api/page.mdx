@@ -1,0 +1,35 @@
+export const metadata = {
+  title: "REST API — Odyhook",
+  description: "The authenticated /api/v1 REST API: resources, pagination, and the OpenAPI spec.",
+};
+
+# REST API
+
+Odyhook exposes a public REST API at `/api/v1` for managing sources, destinations, routes, and events programmatically.
+
+## Authentication
+
+Every request authenticates with an `ody_` API token in the `Authorization` header. Mint one at **Settings → API Tokens**:
+
+```bash
+curl -H "Authorization: Bearer ody_…" https://odyhook.dev/api/v1/sources
+```
+
+Requests without a valid token are rejected with `401`.
+
+## Resources
+
+| Resource | Collection (`/api/v1/…`) | Item (`/api/v1/…/{id}`) |
+|---|---|---|
+| Sources | `GET` list, `POST` create | `GET` get, `PATCH` update |
+| Destinations | `GET` list, `POST` create | `GET` get, `PATCH` update |
+| Routes | `GET` list, `POST` create | `GET` get, `PATCH` update |
+| Events | `GET` list, `POST` create | `GET` get, `PATCH` update |
+| Event search | `POST /api/v1/events/search` | — |
+| Fixtures | `POST /api/v1/fixtures` | — |
+
+List endpoints use cursor pagination: each response includes a `nextCursor`, which you pass back as the `cursor` query parameter to fetch the next page.
+
+## OpenAPI
+
+A machine-readable OpenAPI specification is served at [/openapi.json](/openapi.json). Point your client generator or API explorer at it to get typed bindings for every endpoint above.

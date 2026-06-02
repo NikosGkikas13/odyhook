@@ -1,0 +1,51 @@
+export const metadata = {
+  title: "CLI (ody) — Odyhook",
+  description: "Stream live events to localhost and trigger test webhooks from your terminal.",
+};
+
+# CLI (ody)
+
+`ody` is the Odyhook command-line tool. It streams live events to your local machine and sends test webhooks without leaving the terminal.
+
+## Install & authenticate
+
+`ody` authenticates with an `ody_` API token. Mint one at **Settings → API Tokens** in the dashboard, then export it so the CLI can read it:
+
+```bash
+export ODY_TOKEN="ody_…"
+```
+
+The same tokens authenticate the REST API and the MCP server.
+
+## ody listen
+
+`ody listen` opens a Server-Sent Events stream of a source's events and POSTs each one to a local URL — the easiest way to develop a webhook handler against real traffic:
+
+```bash
+ody listen --source gh-prod --forward http://localhost:3000/webhook --since 1h
+```
+
+The stream stays open and forwards events as they arrive. If the connection drops, `ody` reconnects and backfills any events you missed while disconnected, so nothing is lost. `--since 1h` replays recent events on connect, which is handy when you start the listener after the webhook already fired.
+
+## ody trigger
+
+`ody trigger` sends a payload to a source's ingest URL. The body can come from a file, from stdin, from an existing event, or from an AI-generated description:
+
+```bash
+# From a file, with a custom header
+ody trigger gh-prod --data @payload.json --header "X-GitHub-Event: push"
+
+# From stdin
+echo '{"hello":"world"}' | ody trigger gh-prod --data -
+
+# Replay a stored event by id
+ody trigger gh-prod --replay evt_abc123
+
+# AI-generate a realistic payload from a description
+ody trigger gh-prod --generate "a GitHub pull_request opened event"
+
+# Preview without actually sending
+ody trigger gh-prod --data @payload.json --dry-run
+```
+
+`--dry-run` prints what would be sent without delivering it. `--generate` uses your own Anthropic key (see AI features) and produces a payload grounded on recent events for the source; the CLI then delivers it through the normal ingest path.

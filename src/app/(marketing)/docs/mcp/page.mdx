@@ -1,0 +1,57 @@
+export const metadata = {
+  title: "MCP server — Odyhook",
+  description: "A stateless Model Context Protocol endpoint that lets coding agents drive Odyhook.",
+};
+
+# MCP server
+
+Odyhook ships a Model Context Protocol (MCP) server so coding agents like Claude Code can inspect and operate your webhook setup directly.
+
+## What it is
+
+The endpoint is a stateless Streamable-HTTP MCP server at `POST /api/mcp`. It authenticates with an `ody_` API token (the same tokens as the REST API and CLI — mint one at **Settings → API Tokens**). There is no session store; each request stands alone. The tools wrap the existing service layer, so an agent sees exactly what the dashboard would.
+
+## Tools
+
+Read tools:
+
+- `list_sources`
+- `get_source`
+- `list_destinations`
+- `get_destination`
+- `list_routes`
+- `get_route`
+- `list_events`
+- `get_event`
+- `list_deliveries`
+
+Safe-write tools:
+
+- `create_source`
+- `update_source`
+- `create_destination`
+- `update_destination`
+- `pause_destination`
+- `resume_destination`
+- `create_route`
+- `update_route`
+- `set_route_filter`
+- `clear_route_filter`
+
+BYOK tools (require your own Anthropic key):
+
+- `compile_filter` — compile a plain-English routing rule into a filter AST (preview only; does not persist).
+- `search_events` — natural-language event search across metadata and payload content.
+
+<Callout type="note">
+There are no delete tools by design. The MCP surface is read plus safe writes only — an agent can create, update, pause, and resume, but never destroy data.
+</Callout>
+
+## Connecting from Claude Code
+
+Point any MCP client at the endpoint URL and supply your `ody_` token as the bearer credential:
+
+- **URL:** `https://odyhook.dev/api/mcp`
+- **Authorization:** `Bearer ody_…`
+
+Once connected, the agent can list your sources, inspect failed deliveries, draft filters from plain English, and search events — all scoped to the token's owner.
