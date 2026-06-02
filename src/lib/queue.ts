@@ -3,8 +3,8 @@ import IORedis, { type Redis } from "ioredis";
 
 export const DELIVERY_QUEUE = "odyhook.delivery";
 
-// Exponential backoff schedule in ms, capped at 6 attempts total (5 retries).
-// Order: 10s, 30s, 2m, 10m, 1h, 6h
+// Exponential backoff schedule in ms — one delay per retry.
+// Order: 10s, 30s, 2m, 10m, 1h, 6h. One initial attempt + 6 retries (7 total).
 export const RETRY_DELAYS_MS = [
   10_000,
   30_000,
@@ -14,7 +14,7 @@ export const RETRY_DELAYS_MS = [
   21_600_000,
 ];
 
-export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length;
+export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
 export type DeliveryJob = {
   deliveryId: string;
@@ -64,8 +64,15 @@ export function getDeliveryQueue(): Queue<DeliveryJob> {
 }
 
 /**
- * Backoff for attempt N (0-indexed). Returns the delay in ms before attempting again.
+ * Backoff before the next retry. `attempt` is the 1-indexed number of the
+ * attempt that just failed (matching `delivery.attemptCount + 1` at the call
+ * site), so the first failed attempt waits RETRY_DELAYS_MS[0] (10s). Clamped
+ * at both ends.
  */
 export function backoffForAttempt(attempt: number): number {
-  return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
+  const idx = Math.min(
+    Math.max(0, attempt - 1),
+    RETRY_DELAYS_MS.length - 1,
+  );
+  return RETRY_DELAYS_MS[idx];
 }
