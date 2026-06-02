@@ -16,6 +16,8 @@
 //   { lte: [ path, number ] }
 //   { in: [ path, literal[] ] }
 //   { contains: [ path, string ] }   // case-insensitive substring on strings
+//   { startsWith: [ path, string ] } // case-insensitive prefix on strings
+//   { endsWith:   [ path, string ] } // case-insensitive suffix on strings
 //   { exists: path }                  // truthy if path resolves to anything not undefined
 //
 // Paths are JSONPath-lite: `$.data.amount`, `$.customer.address.country`.
@@ -35,6 +37,8 @@ export type FilterAst =
   | { lte: [JsonPath, number] }
   | { in: [JsonPath, unknown[]] }
   | { contains: [JsonPath, string] }
+  | { startsWith: [JsonPath, string] }
+  | { endsWith: [JsonPath, string] }
   | { exists: JsonPath };
 
 /**
@@ -122,6 +126,20 @@ export function evaluateFilter(ast: FilterAst, event: unknown): boolean {
       ? v.toLowerCase().includes(needle.toLowerCase())
       : false;
   }
+  if ("startsWith" in ast) {
+    const [p, needle] = ast.startsWith;
+    const v = readPath(event, p);
+    return typeof v === "string"
+      ? v.toLowerCase().startsWith(needle.toLowerCase())
+      : false;
+  }
+  if ("endsWith" in ast) {
+    const [p, needle] = ast.endsWith;
+    const v = readPath(event, p);
+    return typeof v === "string"
+      ? v.toLowerCase().endsWith(needle.toLowerCase())
+      : false;
+  }
   if ("exists" in ast) {
     return readPath(event, ast.exists) !== undefined;
   }
@@ -160,6 +178,8 @@ export function validateFilterAst(input: unknown): FilterAst {
     case "neq":
     case "in":
     case "contains":
+    case "startsWith":
+    case "endsWith":
     case "gt":
     case "gte":
     case "lt":
@@ -177,8 +197,11 @@ export function validateFilterAst(input: unknown): FilterAst {
       if (key === "in" && !Array.isArray(lit)) {
         throw new Error(`in value must be an array`);
       }
-      if (key === "contains" && typeof lit !== "string") {
-        throw new Error(`contains value must be a string`);
+      if (
+        (key === "contains" || key === "startsWith" || key === "endsWith") &&
+        typeof lit !== "string"
+      ) {
+        throw new Error(`${key} value must be a string`);
       }
       return { [key]: [p, lit] } as FilterAst;
     }

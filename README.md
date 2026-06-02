@@ -71,10 +71,11 @@ agent things like *"show me failed deliveries for my Stripe source"* or *"create
 a route from gh-prod to slack-alerts filtering for pushes to main"*.
 
 Reads cover sources/destinations/routes/events/deliveries; safe writes cover
-create/update + pause/resume + route filters. `compile_filter` turns plain
-English into a filter AST and needs your Anthropic key. There are no destructive
-(delete) tools. The endpoint is a stateless Streamable-HTTP server — see
-`src/lib/mcp/` (tool registry + dispatch) and `src/app/api/mcp/route.ts`.
+create/update + pause/resume + route filters. Two BYOK tools need your Anthropic
+key: `compile_filter` turns plain English into a filter AST, and `search_events`
+runs a natural-language search across event metadata and payload content. There
+are no destructive (delete) tools. The endpoint is a stateless Streamable-HTTP
+server — see `src/lib/mcp/` (tool registry + dispatch) and `src/app/api/mcp/route.ts`.
 
 ## Project layout
 

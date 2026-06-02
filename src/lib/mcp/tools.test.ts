@@ -20,6 +20,7 @@ describe("mcp tool registry", () => {
       expect.arrayContaining([
         "list_sources", "get_source", "list_deliveries", "list_events",
         "create_route", "set_route_filter", "compile_filter", "pause_destination",
+        "search_events",
       ]),
     );
   });
@@ -53,6 +54,13 @@ describe("mcp tool registry", () => {
     expect(res.hasFilter).toBe(true);
     const row = await prisma.route.findUnique({ where: { id: res.id } });
     expect(row?.filterAst).toEqual({ eq: ["$.type", "payment"] });
+  });
+
+  it("search_events requires an Anthropic key", async () => {
+    const user = await prisma.user.create({ data: { email: `${uniq("mcps")}@test.local` } });
+    await expect(
+      findTool("search_events")!.handler(user.id, { query: "failed events yesterday" }),
+    ).rejects.toThrow(/Anthropic API key/i);
   });
 
   it("create_route rejects an invalid filter without creating a route", async () => {

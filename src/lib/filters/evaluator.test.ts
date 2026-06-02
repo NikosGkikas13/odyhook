@@ -145,6 +145,25 @@ describe("evaluateFilter — leaf operators", () => {
     ).toBe(false);
   });
 
+  it("startsWith: case-insensitive prefix on strings", () => {
+    expect(evaluateFilter({ startsWith: ["$.type", "CHARGE."] }, sample)).toBe(true);
+    expect(evaluateFilter({ startsWith: ["$.type", "refund"] }, sample)).toBe(false);
+  });
+
+  it("endsWith: case-insensitive suffix on strings", () => {
+    expect(
+      evaluateFilter({ endsWith: ["$.data.object.customer.email", "@B.COM"] }, sample),
+    ).toBe(true);
+    expect(
+      evaluateFilter({ endsWith: ["$.data.object.customer.email", "@gmail.com"] }, sample),
+    ).toBe(false);
+  });
+
+  it("startsWith/endsWith: return false on non-strings (fail-closed)", () => {
+    expect(evaluateFilter({ startsWith: ["$.data.object.amount", "12"] }, sample)).toBe(false);
+    expect(evaluateFilter({ endsWith: ["$.data.object.amount", "00"] }, sample)).toBe(false);
+  });
+
   it("exists: truthy when the path resolves to anything but undefined", () => {
     expect(
       evaluateFilter({ exists: "$.data.object.customer.email" }, sample),
@@ -295,6 +314,16 @@ describe("validateFilterAst", () => {
     expect(() => validateFilterAst({ contains: ["$.a", 123] })).toThrow(
       /string/,
     );
+  });
+
+  it("accepts startsWith/endsWith with string literals", () => {
+    expect(validateFilterAst({ startsWith: ["$.a", "x"] })).toBeTypeOf("object");
+    expect(validateFilterAst({ endsWith: ["$.a", "y"] })).toBeTypeOf("object");
+  });
+
+  it("rejects non-string literals on startsWith/endsWith", () => {
+    expect(() => validateFilterAst({ startsWith: ["$.a", 1] })).toThrow(/string/);
+    expect(() => validateFilterAst({ endsWith: ["$.a", 1] })).toThrow(/string/);
   });
 
   it("recursively validates children of and/or/not", () => {

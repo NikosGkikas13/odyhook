@@ -24,6 +24,8 @@ Grammar:
   { "lte":  ["$.path.to.field", number] }
   { "in":   ["$.path.to.field", [literal, literal, ...]] }
   { "contains": ["$.path.to.field", "substring"] }
+  { "startsWith": ["$.path.to.field", "prefix"] }
+  { "endsWith":   ["$.path.to.field", "suffix"] }
   { "exists": "$.path.to.field" }
 
 Rules:
