@@ -1,0 +1,18 @@
+export const metadata = {
+  title: "Signature verification — Odyhook",
+  description: "How Odyhook verifies inbound webhook signatures before persisting.",
+};
+
+# Signature verification
+
+Odyhook verifies the inbound signature before persisting an event. Pick a verification style per source so Odyhook knows which header to read and how the signature was computed.
+
+| Style | Header read | What's signed |
+|---|---|---|
+| `stripe` | `Stripe-Signature: t=<ts>,v1=<hex>` | HMAC-SHA256 of `<ts>.<rawBody>`. A 300s timestamp tolerance gives replay protection. |
+| `github` | `x-hub-signature-256` | `sha256=` + hex of HMAC-SHA256 over the raw body. |
+| `generic-sha256` | `x-signature-256` (or `x-signature`) | Hex of HMAC-SHA256 over the raw body, optionally `sha256=` prefixed. |
+
+<Callout type="warning">
+Signatures are computed over the RAW request body. Verify before any JSON re-serialization — re-encoding can change bytes (key order, whitespace) and break the comparison.
+</Callout>

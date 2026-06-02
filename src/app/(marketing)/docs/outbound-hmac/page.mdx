@@ -1,0 +1,65 @@
+export const metadata = {
+  title: "Outbound HMAC — Odyhook",
+  description: "How Odyhook signs each outbound delivery so destinations can verify it.",
+};
+
+# Outbound HMAC
+
+Each delivery Odyhook forwards is signed with that destination's secret. Two headers carry the signature:
+
+- `X-Odyhook-Signature: v1=<hex>`
+- `X-Odyhook-Timestamp: <unix-seconds>`
+
+The signed value is `` `${timestamp}.${rawBody}` ``, run through HMAC-SHA256 with the destination secret and hex-encoded. Recompute it on your side and compare in constant time.
+
+<CodeTabs tabs={[
+  {
+    label: "Node",
+    code: `import crypto from "node:crypto";
+
+function verify(rawBody, sigHeader, tsHeader, secret) {
+  const sig = sigHeader.replace(/^v1=/, "");
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(\`\${tsHeader}.\${rawBody}\`, "utf8")
+    .digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}`,
+  },
+  {
+    label: "Python",
+    code: `import hmac
+import hashlib
+
+def verify(raw_body, sig_header, ts_header, secret):
+    sig = sig_header[3:] if sig_header.startswith("v1=") else sig_header
+    signed = f"{ts_header}.{raw_body}".encode("utf-8")
+    expected = hmac.new(
+        secret.encode("utf-8"), signed, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(sig, expected)`,
+  },
+  {
+    label: "Go",
+    code: `package main
+
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+)
+
+func verify(rawBody, sigHeader, tsHeader, secret string) bool {
+	sig := strings.TrimPrefix(sigHeader, "v1=")
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(tsHeader + "." + rawBody))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	return hmac.Equal([]byte(sig), []byte(expected))
+}`,
+  },
+]} />
+
+<Callout type="note">
+Reject requests whose `X-Odyhook-Timestamp` is too old. Comparing the signature alone doesn't stop replay — a stale-timestamp check does.
+</Callout>

@@ -1,0 +1,17 @@
+export const metadata = {
+  title: "Rate limits — Odyhook",
+  description: "Per-source ingest rate limiting and the separate REST API token bucket.",
+};
+
+# Rate limits
+
+Ingest is rate-limited per source using a token bucket. The defaults come from environment variables — `RATE_LIMIT_PER_SEC` (10) controls the refill rate and `RATE_LIMIT_BURST` (20) the bucket capacity — and each source can override them.
+
+When a source exceeds its limit, ingest responds with HTTP `429` and these two headers:
+
+| Header | Meaning |
+|---|---|
+| `Retry-After` | Seconds to wait before retrying. |
+| `X-RateLimit-Remaining` | Always `0` on a 429 — the bucket is empty. |
+
+The REST API at `/api/v1` has its own, separate token bucket, applied per API token: `API_RATE_LIMIT_PER_SEC` (10) for refill and `API_RATE_LIMIT_BURST` (30) for burst capacity.
