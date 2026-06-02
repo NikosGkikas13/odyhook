@@ -40,10 +40,19 @@ Notable endpoints beyond the ingest path:
   events for the source. It generates only — the CLI delivers the result through the normal
   `/api/ingest/<slug>` path.
 
+- **`POST /api/v1/events/search`** runs a natural-language event search. It compiles the
+  English (BYOK Anthropic key) into a structured query, then executes it: source/time/
+  delivery-status become a Postgres `WHERE`, while payload-content predicates are evaluated
+  in-memory against `Event.bodyRaw` (stored as text, not JSONB) up to a scan cap, with
+  resumable cursor pagination. API-token auth; returns the compiled query + matching events.
+  The dashboard `/events` search box and the `search_events` MCP tool share the same engine
+  — see `src/lib/search/` and `src/lib/ai/search-compiler.ts`.
+
 - **`POST /api/mcp`** is the Model Context Protocol (Streamable HTTP) endpoint for
   coding agents (e.g. Claude Code). It authenticates with an `ody_` API token (same
   tokens as `/api/v1`) and exposes the read + safe-write tool surface over the existing
-  service layer — see `src/lib/mcp/` (tool registry + JSON-RPC dispatch) and
+  service layer — including the BYOK `compile_filter` and `search_events` (natural-language
+  event search) tools — see `src/lib/mcp/` (tool registry + JSON-RPC dispatch) and
   `src/app/api/mcp/route.ts`. Stateless; no session store. No destructive (delete) tools.
 
 ---

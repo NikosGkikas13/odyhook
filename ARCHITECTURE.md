@@ -221,7 +221,7 @@ They share Postgres (via Prisma) and Redis (via IORedis). This split lets the wo
 
 **Why Claude won**:
 
-- **Two-tier model strategy** — Claude Sonnet is used for tasks requiring reasoning quality (failure diagnosis, code generation, NL rule compilation), while Claude Haiku is used for high-frequency structured tasks (schema drift detection, weekly digest). This maps cost to value: the diagnosis of a production outage justifies a Sonnet call, while summarizing weekly stats does not.
+- **Two-tier model strategy** — Claude Sonnet is used for tasks requiring reasoning quality (failure diagnosis, code generation, NL rule compilation, NL event-search compilation), while Claude Haiku is used for high-frequency structured tasks (schema drift detection, weekly digest). This maps cost to value: the diagnosis of a production outage justifies a Sonnet call, while summarizing weekly stats does not.
 - **Structured output reliability** — the rule compiler asks Claude to output a specific JSON AST grammar. Claude's instruction-following is strong enough that the output passes `validateFilterAst()` validation consistently. The system prompt explicitly describes the 12-node grammar and includes domain hints (e.g., "Stripe amounts are in cents").
 - **BYOK model** — users provide their own Anthropic API key, stored encrypted. This means Odyhook has zero AI infrastructure cost, no API key management complexity, and users maintain full control over their token spend. The alternative — Odyhook paying for API calls — would require usage-based pricing, billing infrastructure, and cost-per-user accounting.
 
