@@ -21,7 +21,7 @@ describe("describeEventQuery", () => {
       },
       payload: { endsWith: ["$.email", "@gmail.com"] },
     };
-    const chips = describeEventQuery(q, [{ id: "s1", name: "Stripe", slug: "stripe" }]);
+    const chips = describeEventQuery(q, [{ id: "s1", name: "Stripe" }]);
     expect(chips.some((c) => /source: Stripe/.test(c))).toBe(true);
     expect(chips.some((c) => /failed/.test(c) && /exhausted/.test(c))).toBe(true);
     expect(chips.some((c) => /body:/.test(c) && /ends with/.test(c))).toBe(true);
