@@ -19,6 +19,7 @@ export function DocsSidebar() {
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={active ? "is-active" : undefined}
               >
                 {link.title}

@@ -24,6 +24,7 @@ export function MarketingHeader({ signedIn }: { signedIn: boolean }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={
                 active
                   ? "font-medium text-zinc-900 dark:text-zinc-100"

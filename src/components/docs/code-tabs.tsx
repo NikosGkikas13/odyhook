@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 // Client component for multi-language code snippets. Usage in MDX:
 //   <CodeTabs tabs={[{ label: "Node", code: "..." }, { label: "Python", code: "..." }]} />
@@ -10,9 +10,10 @@ export function CodeTabs({
   tabs: { label: string; code: string }[];
 }) {
   const [active, setActive] = useState(0);
+  const uid = useId();
   if (tabs.length === 0) return null;
-  const panelId = "docs-codetabs-panel";
-  const tabId = (i: number) => `docs-codetab-${i}`;
+  const panelId = `${uid}-panel`;
+  const tabId = (i: number) => `${uid}-tab-${i}`;
   return (
     <div className="docs-codetabs">
       <div className="docs-codetabs-bar" role="tablist">
