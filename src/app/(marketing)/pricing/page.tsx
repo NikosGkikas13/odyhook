@@ -26,22 +26,24 @@ export default function PricingPage() {
         features. Here&rsquo;s what a real production deployment actually costs.
       </p>
 
-      <table className="docs-prose" style={{ marginTop: "2rem" }}>
-        <thead>
-          <tr>
-            <th>Line item</th>
-            <th>Cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {COSTS.map((row) => (
-            <tr key={row.item}>
-              <td>{row.item}</td>
-              <td>{row.cost}</td>
+      <div className="docs-prose" style={{ marginTop: "2rem" }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Line item</th>
+              <th>Cost</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {COSTS.map((row) => (
+              <tr key={row.item}>
+                <td>{row.item}</td>
+                <td>{row.cost}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <p className="marketing-lede" style={{ marginTop: "1.5rem" }}>
         Total ongoing: <strong>~€6 / month</strong> for the whole stack.

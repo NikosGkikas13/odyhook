@@ -21,12 +21,14 @@ Requests without a valid token are rejected with `401`.
 
 | Resource | Collection (`/api/v1/…`) | Item (`/api/v1/…/{id}`) |
 |---|---|---|
-| Sources | `GET` list, `POST` create | `GET` get, `PATCH` update |
-| Destinations | `GET` list, `POST` create | `GET` get, `PATCH` update |
-| Routes | `GET` list, `POST` create | `GET` get, `PATCH` update |
-| Events | `GET` list, `POST` create | `GET` get, `PATCH` update |
+| Sources | `GET` list, `POST` create | `GET` get, `PATCH` update, `DELETE` |
+| Destinations | `GET` list, `POST` create | `GET` get, `PATCH` update, `DELETE` |
+| Routes | `GET` list, `POST` create | `GET` get, `PATCH` update, `DELETE` |
+| Events | `GET` list | `GET` get |
 | Event search | `POST /api/v1/events/search` | — |
 | Fixtures | `POST /api/v1/fixtures` | — |
+
+Events are read-only over the API — they enter the system through the ingest endpoint (`/api/ingest/<slug>`), not by `POST`ing to `/api/v1/events`.
 
 List endpoints use cursor pagination: each response includes a `nextCursor`, which you pass back as the `cursor` query parameter to fetch the next page.
 

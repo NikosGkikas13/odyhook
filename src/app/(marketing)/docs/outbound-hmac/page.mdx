@@ -23,7 +23,10 @@ function verify(rawBody, sigHeader, tsHeader, secret) {
     .createHmac("sha256", secret)
     .update(\`\${tsHeader}.\${rawBody}\`, "utf8")
     .digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  const a = Buffer.from(sig, "hex");
+  const b = Buffer.from(expected, "hex");
+  // Guard the length first: timingSafeEqual throws on unequal-length buffers.
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }`,
   },
   {
