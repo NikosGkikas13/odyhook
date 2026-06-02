@@ -143,6 +143,10 @@ export default async function Home() {
         <span className="landing-footer-sep">·</span>
         <span>Webhooks that don&rsquo;t silently fail.</span>
         <span className="landing-footer-spacer" />
+        <Link href="/docs" className="landing-footer-link">Docs</Link>
+        <Link href="/use-cases" className="landing-footer-link">Use cases</Link>
+        <Link href="/pricing" className="landing-footer-link">Pricing</Link>
+        <Link href="/changelog" className="landing-footer-link">Changelog</Link>
         <ThemeToggle />
       </footer>
     </main>
