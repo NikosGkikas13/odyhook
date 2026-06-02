@@ -8,7 +8,10 @@ export function Callout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`docs-callout docs-callout--${type}`} role="note">
+    <div
+      className={`docs-callout docs-callout--${type}`}
+      role={type === "warning" ? "alert" : "note"}
+    >
       <div className="docs-callout-body">{children}</div>
     </div>
   );
