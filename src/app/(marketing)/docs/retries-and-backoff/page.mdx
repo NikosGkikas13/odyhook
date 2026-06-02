@@ -5,18 +5,19 @@ export const metadata = {
 
 # Retries & backoff
 
-When a delivery fails, Odyhook retries it on a fixed exponential schedule. There are up to 6 attempts in total — 1 initial attempt plus 5 retries. If every attempt is exhausted, the delivery stays visible in the dashboard for one-click replay.
+When a delivery fails, Odyhook retries it on a fixed exponential schedule. There are up to 7 attempts in total — 1 initial attempt plus 6 retries. If every attempt is exhausted, the delivery stays visible in the dashboard for one-click replay.
 
 The initial attempt runs immediately. Each retry then waits a growing delay after the previous failure:
 
 | Retry | Delay after the previous attempt |
 |---|---|
-| 1st | 30s |
-| 2nd | 2m |
-| 3rd | 10m |
-| 4th | 1h |
-| 5th | 6h |
+| 1st | 10s |
+| 2nd | 30s |
+| 3rd | 2m |
+| 4th | 10m |
+| 5th | 1h |
+| 6th | 6h |
 
-After the 5th retry fails, the delivery is marked exhausted.
+After the 6th retry fails, the delivery is marked exhausted.
 
 Terminal (non-retryable) outcomes stop early instead of exhausting all attempts — there's no point retrying a delivery that can never succeed.

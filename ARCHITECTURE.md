@@ -59,7 +59,7 @@ They share Postgres (via Prisma) and Redis (via IORedis). This split lets the wo
 6. **Transform** — if a Transformation exists, execute the user's JS code inside QuickJS. On transform error, skip the HTTP call and fall into the retry path.
 7. **HTTP delivery** — `fetch()` to the destination URL with an abort timeout (default 10s). Capture response code and first 2KB of body.
 8. **Success** — mark `delivered`.
-9. **Failure** — if attempts < 6, mark `failed`, compute exponential backoff delay (`10s → 30s → 2m → 10m → 1h → 6h`), set `nextRetryAt`, and re-enqueue with `{ delay }`. If attempts exhausted, mark `exhausted`.
+9. **Failure** — if attempts < 7, mark `failed`, compute exponential backoff delay (`10s → 30s → 2m → 10m → 1h → 6h`), set `nextRetryAt`, and re-enqueue with `{ delay }`. If attempts exhausted, mark `exhausted`.
 
 ---
 

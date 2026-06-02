@@ -99,7 +99,7 @@ docker-compose.yml                – Postgres + Redis + MailHog
 
 ## Retry schedule
 
-Failed deliveries are retried with exponential backoff (6 attempts total):
+Failed deliveries are retried with exponential backoff (7 attempts total — 1 initial + 6 retries):
 
 ```
 10s → 30s → 2m → 10m → 1h → 6h → exhausted
