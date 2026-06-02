@@ -1,0 +1,32 @@
+export const metadata = {
+  title: "AI filters & transforms — Odyhook",
+  description: "Describe routing rules and payload reshapes in plain English; Odyhook compiles them.",
+};
+
+# AI filters & transforms
+
+Odyhook turns plain-English descriptions into the routing filters and payload transforms that run on every delivery.
+
+## Bring your own key
+
+These features are BYOK: paste your own Anthropic API key at **Settings → API Keys**. The key is encrypted at rest and used only for your own compilations — there is no central key.
+
+## Filters
+
+A filter decides whether a route forwards an event. Describe the condition you want in English and Odyhook compiles it, grounded on the source's recent events, into a structured filter:
+
+> "only forward pull requests that were opened, not closed"
+
+The compiled filter is evaluated against each incoming event; the route forwards only when it matches. You can preview the compiled result before attaching it to a route, and you can author filters this way from the dashboard, the `compile_filter` MCP tool, or by passing your own structured AST.
+
+## Transforms
+
+A transform reshapes the payload before delivery. Describe the reshape in English and Odyhook compiles it to JavaScript:
+
+> "flatten the customer object and drop the internal_notes field"
+
+The generated code runs in a QuickJS WebAssembly sandbox — isolated from the host, with no network or filesystem access — and its output is what gets delivered to the destination.
+
+<Callout type="note">
+AI filters and transforms require your own Anthropic key (Settings → API Keys). There is no central key; without one, these features are unavailable.
+</Callout>

@@ -1,0 +1,34 @@
+export const metadata = {
+  title: "Natural-language event search — Odyhook",
+  description: "Search received events in plain English across metadata and payload content.",
+};
+
+# Natural-language event search
+
+Search your received events by describing what you want in plain English — across both event metadata and the contents of the JSON payload.
+
+## How it works
+
+Your English query is compiled into a structured query, which is then executed in two layers:
+
+- **Metadata predicates** — source, time range, and delivery status — become a Postgres `WHERE` clause, so they run in the database.
+- **Payload-content predicates** are evaluated in-memory against each event's `bodyRaw`, since bodies are stored as text rather than JSONB. The scan is bounded by a cap, and results use resumable cursor pagination — pass the returned cursor back to continue scanning beyond the cap.
+
+## Where to use it
+
+One engine powers all three entry points:
+
+- The dashboard `/events` search box.
+- `POST /api/v1/events/search` in the REST API.
+- The `search_events` MCP tool.
+
+## Example
+
+```bash
+curl -X POST https://odyhook.dev/api/v1/events/search \
+  -H "Authorization: Bearer ody_…" \
+  -H "content-type: application/json" \
+  --data '{"q":"events from the last day where the delivery failed"}'
+```
+
+The response includes the compiled query alongside the matching events (newest first), so you can see exactly how your English was interpreted.
