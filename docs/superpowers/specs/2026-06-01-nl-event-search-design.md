@@ -237,8 +237,9 @@ Two-step confirm, URL-driven so pagination/refresh never re-invoke the LLM:
    `previewRule`, and to avoid clashing with the lib's `compileEventSearch`): `requireUserId`,
    call the compiler, return `{ query, summary }` — **preview only**, no navigation.
 3. The component renders the `summary` chips + **"Run search"** / **"Edit"**.
-4. **"Run search"** base64url-encodes the validated `query` into a `?q=` param (plus
-   `?qtext=` with the original text for edit/repopulation) and `router.push("/events?q=…")`.
+4. **"Run search"** serializes the validated `query` as JSON into a `?q=` param
+   (percent-encoded by `URLSearchParams`; plus `?qtext=` with the original text for
+   edit/repopulation) and `router.push("/events?q=…")`.
 5. **`events/page.tsx`**: when `?q=` is present → decode + `validateEventQuery` (on failure,
    render a friendly "couldn't read that search" with a clear-search link) → `runEventSearch`
    → render results (reuse the existing `EventsBulkActions` list, which already takes events
