@@ -15,6 +15,7 @@ import {
 import { listEvents, getEvent } from "@/lib/services/events";
 import { listDeliveries } from "@/lib/services/deliveries";
 import { compileFilterForSource } from "@/lib/services/filters";
+import { searchEvents } from "@/lib/services/search";
 import { validateFilterAst } from "@/lib/filters/evaluator";
 import type { Page } from "@/lib/api/respond";
 
@@ -223,6 +224,32 @@ export const tools: ToolDef[] = [
     description: "Compile a plain-English routing rule into a filter AST, grounded on the source's recent events. Preview only — does NOT persist. Returns { ast, matchedCount, totalCount }. Requires the user's Anthropic key (Settings → API Keys). Call set_route_filter (or create_route's filter arg) to apply the result.",
     inputSchema: z.object({ sourceId: z.string().min(1), prompt: z.string().min(1) }),
     handler: (u, i) => compileFilterForSource(u, i.sourceId, i.prompt),
+  }),
+  defineTool({
+    name: "search_events",
+    description:
+      "Search received events in plain English across metadata (source, time, delivery status) AND payload content (fields inside the JSON body). Returns the compiled query plus matching events (newest first, with a 500-char body preview). Read-only. Requires the user's Anthropic key (Settings → API Keys).",
+    inputSchema: z.object({
+      query: z.string().min(1),
+      limit: z.number().int().min(1).max(100).optional(),
+    }),
+    handler: async (u, i) => {
+      const r = await searchEvents(u, i.query, { limit: i.limit });
+      return {
+        query: r.query,
+        summary: r.summary,
+        scanned: r.scanned,
+        scanCapped: r.scanCapped,
+        nextCursor: r.nextCursor,
+        events: r.events.map((e) => ({
+          id: e.id,
+          source: e.source.name,
+          receivedAt: e.receivedAt.toISOString(),
+          statuses: e.deliveries.map((d) => d.status),
+          bodyPreview: e.bodyRaw.slice(0, 500),
+        })),
+      };
+    },
   }),
 ];
 

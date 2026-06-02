@@ -42,6 +42,7 @@ function mapDomainError(err: unknown): ToolResult {
     if (/^invalid filter AST/i.test(err.message)) return toolError(err.message);
     if (/^Destination URL rejected:/.test(err.message) || /^Invalid header/.test(err.message)) return toolError(err.message);
     if (/No Anthropic API key configured/i.test(err.message)) return toolError(err.message);
+    if (/^could not interpret the search/i.test(err.message)) return toolError(err.message);
   }
   console.error("[mcp] tool error:", err); // Sentry auto-captures
   return toolError("internal error");
