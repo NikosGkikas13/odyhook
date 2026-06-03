@@ -13,7 +13,7 @@ The operational ground truth for the project. Updated whenever infra changes. Fo
 | Production URL | `https://odyhook.dev` (apex), `www` → apex 301 redirect |
 | Server | Hetzner Cloud CX23, Helsinki — `157.180.91.106` (2 vCPU, 4 GB RAM, 40 GB SSD) |
 | Hosting cost | €4.95/month |
-| Source repo | `github.com/NikosGkikas13/hooksmith` (public) |
+| Source repo | `github.com/NikosGkikas13/odyhook` (public) |
 | Compose project name | `hooksmith` (derived from the `/opt/hooksmith` directory basename; kept after the Odyhook rebrand to avoid a `pg_dump` migration of named volumes) |
 | Container image tag | `odyhook-app:latest` (built locally on the server from the repo's Dockerfile) |
 | Repo on server | `/opt/hooksmith` (single canonical checkout — `~/hooksmith` was removed) |
@@ -22,7 +22,7 @@ The operational ground truth for the project. Updated whenever infra changes. Fo
 
 ## What this project is (one-paragraph version)
 
-External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest). A public REST API is live at `/api/v1` (authenticated by API tokens minted at Settings → API Tokens); the OpenAPI spec is served at `/openapi.json`.
+External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest). A public REST API is live at `/api/v1` (authenticated by API tokens minted at Settings → API Tokens); the OpenAPI spec is served at `/openapi.json`. A public, signed-out marketing & docs site lives under the `(marketing)` route group: `/docs` (13 pages — quickstart, signature verification, outbound HMAC, retries & backoff, rate limits, idempotency, CLI, REST API, MCP, AI filters/transforms, NL event search, AI event diffs, plus the index), `/pricing`, `/use-cases`, and `/changelog`.
 
 Five running containers in production. Three external services (Resend, Cloudflare R2, Sentry). One cron file. Everything deployed via GitHub Actions on push to `main`.
 
@@ -158,7 +158,7 @@ Five containers, one Docker bridge network (`hooksmith_default`), four named vol
 | **Resend** | SMTP for magic-link emails. Domain `odyhook.dev` verified (DKIM/SPF/DMARC). Sends from `no-reply@odyhook.dev`. | API key in server's `EMAIL_SERVER_PASSWORD`. | [resend.com/domains](https://resend.com/domains) |
 | **Cloudflare R2** | Off-site DB backup storage | Account ID `728e0c68f696f31ad2029513f3e9962b`. Bucket `odyhook-backups`, region EEUR, 14-day object lifecycle. | [dash.cloudflare.com](https://dash.cloudflare.com) → R2 |
 | **Sentry** | Error tracking for web + worker | Org `odyhook`, region DE, project key in `SENTRY_DSN` | [sentry.io](https://sentry.io) |
-| **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/hooksmith` (public) | [github.com](https://github.com) |
+| **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/odyhook` (public) | [github.com](https://github.com) |
 | **GitHub OAuth App** | "Continue with GitHub" sign-in path | Callback: `https://odyhook.dev/api/auth/callback/github`. Client ID + secret in server's `.env`. | [github.com/settings/developers](https://github.com/settings/developers) |
 | **Hetzner Cloud** | VPS host | Server `hooksmith` in Helsinki | [console.hetzner.cloud](https://console.hetzner.cloud) |
 | **Anthropic API** | User-provided AI keys (BYOK model) | No central key — each user supplies their own in Settings → API Keys. Encrypted at rest with `ENCRYPTION_KEY`. | n/a — per-user |
@@ -290,7 +290,7 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | **Application exceptions** (web + worker) | [Sentry dashboard](https://sentry.io) → project `odyhook` → Issues |
 | **Container logs (live)** | SSH in → `docker compose -f docker-compose.prod.yml logs -f <service>` |
 | **Cron job output** | SSH in → `tail -f /var/log/odyhook-cron.log` |
-| **Deploy history** | [github.com/NikosGkikas13/hooksmith/actions](https://github.com/NikosGkikas13/hooksmith/actions) |
+| **Deploy history** | [github.com/NikosGkikas13/odyhook/actions](https://github.com/NikosGkikas13/odyhook/actions) |
 | **Caddy / TLS status** | `docker compose logs caddy` (cert renewals appear here) |
 | **R2 backup inventory** | `rclone ls r2:odyhook-backups | sort -r | head` |
 
@@ -383,7 +383,7 @@ These are non-obvious choices worth knowing about before "fixing" them:
 - **`/opt/hooksmith` directory** on the server (not `/opt/odyhook`). Renaming would require `docker compose down` and reconnecting named volumes; cosmetic only. Same reason as DB name.
 - **Compose project name `hooksmith`** (basename of the directory). Container names show as `hooksmith-web-1`, `hooksmith-postgres-1`, etc. Cosmetic.
 - **Repo on user's laptop also at `~/Desktop/PracticeProjects/hooksmith`** — not renamed for the same reason.
-- **GitHub repo URL is `github.com/NikosGkikas13/hooksmith`**, not `.../odyhook`. Renaming would break the deploy workflow's hardcoded URL and require updating the auto-deploy SSH path.
+- **GitHub repo was renamed `hooksmith` → `odyhook`** (2026-05-24). Canonical URL is now `github.com/NikosGkikas13/odyhook`. GitHub auto-redirects the old `.../hooksmith` URL for clone/push/PR/secrets, so the deploy workflow and any local remote still pointing at the old name keep working — update them opportunistically. The local repo dir, `/opt/hooksmith`, the Compose project name, and the Postgres DB name still say "hooksmith" (cosmetic; renaming those would need a `pg_dump` migration).
 - **Sign-in page lives at `/signin`**, has both GitHub and email options. Homepage links to `/signin` with a single button — duplicate "Continue with GitHub" was removed.
 - **`onboarding@resend.dev`** was used as the From address until `odyhook.dev` was verified in Resend. Now using `no-reply@odyhook.dev`. The `no-reply@` mailbox doesn't actually exist — Resend only handles outbound; nobody can reply to those emails.
 - **Anthropic is BYOK.** There's no central Anthropic key in `.env`. Each user pastes their own at Settings → API Keys, encrypted with `ENCRYPTION_KEY`.

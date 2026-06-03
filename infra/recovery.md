@@ -282,7 +282,7 @@ echo "command=\"/usr/local/bin/odyhook-deploy.sh\",no-port-forwarding,no-X11-for
 # Update GitHub Actions secret
 cat /root/.ssh/odyhook_deploy_new
 # (locally, on your laptop, with gh CLI authed:)
-# ssh root@157.180.91.106 'cat /root/.ssh/odyhook_deploy_new' | gh secret set DEPLOY_SSH_KEY --repo NikosGkikas13/hooksmith
+# ssh root@157.180.91.106 'cat /root/.ssh/odyhook_deploy_new' | gh secret set DEPLOY_SSH_KEY --repo NikosGkikas13/odyhook
 
 # Once verified working, delete the old keypair
 rm /root/.ssh/odyhook_deploy /root/.ssh/odyhook_deploy.pub
@@ -362,7 +362,7 @@ E.g., moving off Hetzner. Plan:
 
 1. Provision the new server, install Docker
 2. **Take a manual backup** from the old server: `/usr/local/bin/odyhook-backup.sh`
-3. Clone the repo on the new server: `git clone https://github.com/NikosGkikas13/hooksmith.git /opt/hooksmith`
+3. Clone the repo on the new server: `git clone https://github.com/NikosGkikas13/odyhook.git /opt/hooksmith`
 4. Copy `.env` from old server to new (`scp`)
 5. Copy `/root/.config/rclone/rclone.conf` (for backups)
 6. Copy `/root/.ssh/odyhook_deploy*` (for CI deploys) — and update the SSH host key pin in the workflow YAML
