@@ -12,13 +12,12 @@ describe("docs nav", () => {
     expect(new Set(DOC_SLUGS).size).toBe(DOC_SLUGS.length);
   });
 
-  it("every nav slug has a backing page.mdx", () => {
+  it("every nav slug has a backing page", () => {
     for (const slug of DOC_SLUGS) {
-      const file =
-        slug === ""
-          ? join(DOCS_DIR, "page.mdx")
-          : join(DOCS_DIR, slug, "page.mdx");
-      expect(existsSync(file), `missing page.mdx for slug "${slug}"`).toBe(true);
+      const dir = slug === "" ? DOCS_DIR : join(DOCS_DIR, slug);
+      const hasPage =
+        existsSync(join(dir, "page.mdx")) || existsSync(join(dir, "page.tsx"));
+      expect(hasPage, `missing page for slug "${slug}"`).toBe(true);
     }
   });
 });

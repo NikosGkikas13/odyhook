@@ -29,6 +29,7 @@ export const DOCS_NAV: DocSection[] = [
     links: [
       { slug: "cli", title: "CLI (ody)" },
       { slug: "rest-api", title: "REST API" },
+      { slug: "api-reference", title: "API reference" },
       { slug: "mcp", title: "MCP server" },
     ],
   },
