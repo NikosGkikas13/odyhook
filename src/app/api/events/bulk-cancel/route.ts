@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { parseBulkIds } from "@/lib/bulk-events";
+import { readJsonLimited, BodyTooLargeError } from "@/lib/api/body";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -25,8 +26,11 @@ export async function POST(req: Request) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonLimited(req);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      return NextResponse.json({ error: "request body too large" }, { status: 413 });
+    }
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
   const parsed = parseBulkIds(body);

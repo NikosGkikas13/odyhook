@@ -5,6 +5,7 @@ import { authenticateApiToken, type ApiAuth } from "./authenticate";
 import { checkApiRateLimit } from "@/lib/ratelimit";
 import { apiError, rateLimited, type ErrorCode } from "./respond";
 import { RouteConflictError } from "@/lib/services/routes";
+import { readJsonLimited, BodyTooLargeError } from "./body";
 
 type Handler = (req: Request, auth: ApiAuth, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
@@ -30,6 +31,9 @@ export function withApiAuth(fn: Handler) {
     try {
       return await fn(req, auth, ctx);
     } catch (err) {
+      if (err instanceof BodyTooLargeError) {
+        return apiError("payload_too_large", "request body too large");
+      }
       if (err instanceof z.ZodError) {
         return apiError("validation_error", "request validation failed", { issues: err.issues });
       }
@@ -50,11 +54,16 @@ export function withApiAuth(fn: Handler) {
   };
 }
 
-/** Parse a JSON request body, throwing a ZodError-friendly message on failure. */
+/**
+ * Parse a size-limited JSON request body. A `BodyTooLargeError` propagates so
+ * withApiAuth can map it to 413; any other failure (missing/malformed body)
+ * becomes a ZodError → 400 validation_error, preserving prior behavior.
+ */
 export async function readJson(req: Request): Promise<unknown> {
   try {
-    return await req.json();
-  } catch {
+    return await readJsonLimited(req);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) throw err;
     throw new z.ZodError([{ code: "custom", path: [], message: "invalid JSON body" }]);
   }
 }

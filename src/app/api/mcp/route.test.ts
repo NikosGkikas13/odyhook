@@ -71,4 +71,16 @@ describe("/api/mcp", () => {
     const body = await res.json();
     expect(body.error.code).toBe(-32700);
   });
+
+  it("413s on an oversize body", async () => {
+    const { raw } = await setup();
+    const big = {
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { s: "x".repeat(300 * 1024) },
+    };
+    const res = await POST(rpc(raw, big));
+    expect(res.status).toBe(413);
+  });
 });
