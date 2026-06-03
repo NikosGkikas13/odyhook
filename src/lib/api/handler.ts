@@ -5,6 +5,7 @@ import { authenticateApiToken, type ApiAuth } from "./authenticate";
 import { checkApiRateLimit } from "@/lib/ratelimit";
 import { apiError, rateLimited, type ErrorCode } from "./respond";
 import { RouteConflictError } from "@/lib/services/routes";
+import { QuotaExceededError } from "@/lib/quota";
 import { readJsonLimited, BodyTooLargeError } from "./body";
 
 type Handler = (req: Request, auth: ApiAuth, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
@@ -38,6 +39,9 @@ export function withApiAuth(fn: Handler) {
         return apiError("validation_error", "request validation failed", { issues: err.issues });
       }
       if (err instanceof RouteConflictError) {
+        return apiError("conflict", err.message);
+      }
+      if (err instanceof QuotaExceededError) {
         return apiError("conflict", err.message);
       }
       if (

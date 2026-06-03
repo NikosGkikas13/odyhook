@@ -68,4 +68,23 @@ describe("/api/v1/destinations handlers", () => {
     expect((await GET_ONE(jsonReq(`https://x/api/v1/destinations/${dto.id}`, b.raw), params(dto.id))).status).toBe(404);
     expect((await DELETE(jsonReq(`https://x/api/v1/destinations/${dto.id}`, a.raw, "DELETE"), params(dto.id))).status).toBe(204);
   });
+
+  it("409s when the per-account destination quota is reached", async () => {
+    const { raw } = await makeUserWithToken();
+    process.env.MAX_DESTINATIONS_PER_USER = "1";
+    try {
+      const first = await POST(
+        jsonReq("https://x/api/v1/destinations", raw, "POST", { name: "one", url: "https://example.test/1" }),
+        noParams,
+      );
+      expect(first.status).toBe(201);
+      const second = await POST(
+        jsonReq("https://x/api/v1/destinations", raw, "POST", { name: "two", url: "https://example.test/2" }),
+        noParams,
+      );
+      expect(second.status).toBe(409);
+    } finally {
+      delete process.env.MAX_DESTINATIONS_PER_USER;
+    }
+  });
 });

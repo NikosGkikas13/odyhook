@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { tools, findTool } from "./tools";
 import { RouteConflictError } from "@/lib/services/routes";
+import { QuotaExceededError } from "@/lib/quota";
 
 export const PROTOCOL_VERSION = "2025-06-18";
 export const SERVER_INFO = { name: "odyhook", version: "1.0.0" };
@@ -37,6 +38,7 @@ function toolError(message: string): ToolResult {
 
 function mapDomainError(err: unknown): ToolResult {
   if (err instanceof RouteConflictError) return toolError(err.message);
+  if (err instanceof QuotaExceededError) return toolError(err.message);
   if (err instanceof Error) {
     if (/not found/i.test(err.message)) return toolError(err.message);
     if (/^invalid filter AST/i.test(err.message)) return toolError(err.message);

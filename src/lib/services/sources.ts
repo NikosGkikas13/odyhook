@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
+import { assertWithinQuota } from "@/lib/quota";
 import type { Page } from "@/lib/api/respond";
 
 const VERIFY_STYLES = ["none", "stripe", "github", "generic-sha256"] as const;
@@ -72,6 +73,7 @@ function randomSlug(): string {
 
 export async function createSource(userId: string, input: SourceInput): Promise<SourceDTO> {
   const parsed = sourceCreateSchema.parse(input);
+  await assertWithinQuota(userId, "sources");
   const created = await prisma.source.create({
     data: {
       userId,

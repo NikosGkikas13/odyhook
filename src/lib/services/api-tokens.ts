@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/api/token";
+import { assertWithinQuota } from "@/lib/quota";
 
 const nameSchema = z.string().min(1).max(60);
 
@@ -16,6 +17,7 @@ export type ApiTokenSummary = {
 
 export async function createTokenForUser(userId: string, name: string) {
   const parsedName = nameSchema.parse(name);
+  await assertWithinQuota(userId, "apiTokens");
   const t = generateToken();
   const record = await prisma.apiToken.create({
     data: { userId, name: parsedName, tokenHash: t.hash, prefix: t.prefix },
