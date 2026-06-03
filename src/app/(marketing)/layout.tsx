@@ -1,33 +1,35 @@
 import Link from "next/link";
+import { SessionProvider } from "next-auth/react";
 
-import { auth } from "@/auth";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 // Shared chrome for the public content surfaces (/docs, /use-cases, /pricing,
 // /changelog). The landing page lives outside this group so it keeps its
-// bespoke full-bleed layout. These routes are public — proxy.ts gates only
-// the dashboard, so no auth wiring is needed beyond reading the session to
-// pick the header CTA label.
-export default async function MarketingLayout({
+// bespoke full-bleed layout. These routes are public — proxy.ts gates only the
+// dashboard, so no auth wiring is needed here. The only auth-dependent bit is
+// the header CTA (Sign in / Dashboard); it reads the session client-side via
+// <SessionProvider> so these pages stay fully static (prerendered at build,
+// served from the CDN). Reading auth() in this server layout would force the
+// whole group into dynamic rendering.
+export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  const signedIn = !!session?.user;
-
   return (
-    <div className="marketing-shell">
-      <MarketingHeader signedIn={signedIn} />
-      <main className="marketing-main">{children}</main>
-      <footer className="landing-footer">
-        <Link href="/">Odyhook</Link>
-        <span className="landing-footer-sep">·</span>
-        <span>Webhooks that don&rsquo;t silently fail.</span>
-        <span className="landing-footer-spacer" />
-        <ThemeToggle />
-      </footer>
-    </div>
+    <SessionProvider>
+      <div className="marketing-shell">
+        <MarketingHeader />
+        <main className="marketing-main">{children}</main>
+        <footer className="landing-footer">
+          <Link href="/">Odyhook</Link>
+          <span className="landing-footer-sep">·</span>
+          <span>Webhooks that don&rsquo;t silently fail.</span>
+          <span className="landing-footer-spacer" />
+          <ThemeToggle />
+        </footer>
+      </div>
+    </SessionProvider>
   );
 }

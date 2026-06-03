@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const NAV = [
   { href: "/docs", label: "Docs" },
@@ -10,8 +11,14 @@ const NAV = [
   { href: "/changelog", label: "Changelog" },
 ];
 
-export function MarketingHeader({ signedIn }: { signedIn: boolean }) {
+export function MarketingHeader() {
   const pathname = usePathname();
+  // Read the session on the client so the marketing layout stays static
+  // (prerendered). Until it resolves we optimistically show the signed-out
+  // CTA, which is the right default for a public docs site and matches the
+  // server-prerendered HTML (no hydration mismatch).
+  const { data: session } = useSession();
+  const signedIn = !!session?.user;
   return (
     <header className="marketing-header">
       <Link href="/" className="font-semibold">
