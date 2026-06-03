@@ -1,7 +1,7 @@
 import { sendMail } from "../mailer";
 import { decrypt, decryptJson } from "../crypto";
 import { composeEmail, composeSlackBlocks, composeWebhookPayload, type AlertContext } from "./compose";
-import { assertSafeUrl } from "../ssrf";
+import { safeFetch } from "../safe-fetch";
 
 const SLACK_TIMEOUT_MS = 10_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -16,20 +16,24 @@ export async function dispatchSlack(
   ctx: AlertContext,
 ): Promise<void> {
   const url = decrypt(webhookUrlEnc);
-  await assertSafeUrl(url);
   const body = composeSlackBlocks(ctx);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SLACK_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    // safeFetch pins to the validated IP and refuses redirects (SSRF guard).
+    const { res, close } = await safeFetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Slack POST ${res.status}: ${text.slice(0, 200)}`);
+    try {
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Slack POST ${res.status}: ${text.slice(0, 200)}`);
+      }
+    } finally {
+      await close().catch(() => {});
     }
   } finally {
     clearTimeout(timer);
@@ -42,7 +46,6 @@ export async function dispatchGenericWebhook(
   ctx: AlertContext,
 ): Promise<void> {
   const url = decrypt(urlEnc);
-  await assertSafeUrl(url);
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -63,15 +66,20 @@ export async function dispatchGenericWebhook(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    // safeFetch pins to the validated IP and refuses redirects (SSRF guard).
+    const { res, close } = await safeFetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Webhook POST ${res.status}: ${text.slice(0, 200)}`);
+    try {
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Webhook POST ${res.status}: ${text.slice(0, 200)}`);
+      }
+    } finally {
+      await close().catch(() => {});
     }
   } finally {
     clearTimeout(timer);

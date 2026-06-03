@@ -24,7 +24,8 @@ import {
 } from "../lib/outbound-sign";
 import { runTransformation } from "../lib/sandbox/quickjs";
 import { evaluateFilter, type FilterAst } from "../lib/filters/evaluator";
-import { assertSafeUrl, SsrfError } from "../lib/ssrf";
+import { SsrfError } from "../lib/ssrf";
+import { safeFetch } from "../lib/safe-fetch";
 import { SENSITIVE_HEADERS } from "../lib/sensitive-headers";
 import {
   DELIVERY_QUEUE,
@@ -250,20 +251,28 @@ async function processDelivery(job: Job<DeliveryJob>) {
     // Skip the fetch entirely — fall through to the failure/retry branch.
     clearTimeout(timeout);
   } else try {
-    // Re-validate at delivery time: defends against DNS rebinding, and
-    // catches destinations that were created before the SSRF guard landed.
-    await assertSafeUrl(delivery.destination.url);
-    const res = await fetch(delivery.destination.url, {
+    // safeFetch resolves + validates the URL once and pins the socket to that
+    // exact IP with redirects disabled (see src/lib/safe-fetch.ts). This is the
+    // real SSRF enforcement — it defeats both the redirect bypass and the
+    // DNS-rebinding TOCTOU that a bare assertSafeUrl()+fetch() left open. A 3xx
+    // is returned verbatim (not followed) and falls into the HTTP-error path
+    // below; create-time assertSafeUrl on the destination is best-effort UX only.
+    const { res, close } = await safeFetch(delivery.destination.url, {
       method: delivery.event.method,
       headers,
       body,
       signal: controller.signal,
     });
-    responseCode = res.status;
-    const text = await res.text().catch(() => "");
-    responseSnippet = text.slice(0, 2048);
-    if (!res.ok) {
-      errorMsg = `HTTP ${res.status}`;
+    try {
+      responseCode = res.status;
+      const text = await res.text().catch(() => "");
+      responseSnippet = text.slice(0, 2048);
+      if (!res.ok) {
+        errorMsg = `HTTP ${res.status}`;
+      }
+    } finally {
+      // Release the pinned connection now that the body is read.
+      await close().catch(() => {});
     }
   } catch (err) {
     if (err instanceof SsrfError) {
