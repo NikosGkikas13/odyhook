@@ -57,6 +57,11 @@ export default function PricingPage() {
           Deploy your own →
         </Link>
       </div>
+
+      <p className="marketing-lede" style={{ marginTop: "2.5rem", fontSize: "0.9rem" }}>
+        Compare: <Link href="/vs/hookdeck">vs Hookdeck</Link> ·{" "}
+        <Link href="/vs/svix">vs Svix</Link>
+      </p>
     </>
   );
 }
