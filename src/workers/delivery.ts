@@ -25,7 +25,7 @@ import {
 import { runTransformation } from "../lib/sandbox/quickjs";
 import { evaluateFilter, type FilterAst } from "../lib/filters/evaluator";
 import { SsrfError } from "../lib/ssrf";
-import { safeFetch } from "../lib/safe-fetch";
+import { safeFetch, readCappedText } from "../lib/safe-fetch";
 import { SENSITIVE_HEADERS } from "../lib/sensitive-headers";
 import {
   DELIVERY_QUEUE,
@@ -265,8 +265,12 @@ async function processDelivery(job: Job<DeliveryJob>) {
     });
     try {
       responseCode = res.status;
-      const text = await res.text().catch(() => "");
-      responseSnippet = text.slice(0, 2048);
+      // Cap the body read: res.text() would buffer the entire response (the
+      // AbortController timeout bounds time, not bytes — a fast server can push
+      // gigabytes within it). readCappedText keeps ~2 KB and cancels the rest.
+      // Swallow read errors → empty snippet, preserving prior behavior: a
+      // delivered 2xx shouldn't be failed just because the snippet read hiccuped.
+      responseSnippet = await readCappedText(res.body, 2048).catch(() => "");
       if (!res.ok) {
         errorMsg = `HTTP ${res.status}`;
       }

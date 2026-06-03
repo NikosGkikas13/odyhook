@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { safeFetch, pinnedLookup } from "./safe-fetch";
+import { safeFetch, pinnedLookup, readCappedText } from "./safe-fetch";
 import { SsrfError } from "./ssrf";
 
 // Spin up a throwaway loopback HTTP server. Tests inject a resolver so the real
@@ -146,6 +146,45 @@ describe("safeFetch", () => {
       ),
     ).rejects.toThrow(SsrfError);
     expect(srv.hits).toHaveLength(0);
+  });
+});
+
+describe("readCappedText", () => {
+  it("returns an empty string for a null body", async () => {
+    expect(await readCappedText(null, 2048)).toBe("");
+  });
+
+  it("returns the whole body when it is under the cap", async () => {
+    const enc = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(enc.encode("hello world"));
+        c.close();
+      },
+    });
+    expect(await readCappedText(stream, 2048)).toBe("hello world");
+  });
+
+  it("stops reading an unbounded body once the cap is reached and cancels", async () => {
+    const enc = new TextEncoder();
+    let pulled = 0;
+    let cancelled = false;
+    // Effectively infinite: every pull enqueues another 1 KB chunk.
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(enc.encode("x".repeat(1000)));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+
+    const out = await readCappedText(stream, 2048);
+
+    expect(out.length).toBe(2048); // sliced to the cap
+    expect(cancelled).toBe(true); // upload was aborted
+    expect(pulled).toBeLessThan(6); // did NOT drain the infinite stream
   });
 });
 

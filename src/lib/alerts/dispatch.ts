@@ -1,7 +1,7 @@
 import { sendMail } from "../mailer";
 import { decrypt, decryptJson } from "../crypto";
 import { composeEmail, composeSlackBlocks, composeWebhookPayload, type AlertContext } from "./compose";
-import { safeFetch } from "../safe-fetch";
+import { safeFetch, readCappedText } from "../safe-fetch";
 
 const SLACK_TIMEOUT_MS = 10_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -29,8 +29,8 @@ export async function dispatchSlack(
     });
     try {
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Slack POST ${res.status}: ${text.slice(0, 200)}`);
+        const text = await readCappedText(res.body, 200).catch(() => "");
+        throw new Error(`Slack POST ${res.status}: ${text}`);
       }
     } finally {
       await close().catch(() => {});
@@ -75,8 +75,8 @@ export async function dispatchGenericWebhook(
     });
     try {
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`Webhook POST ${res.status}: ${text.slice(0, 200)}`);
+        const text = await readCappedText(res.body, 200).catch(() => "");
+        throw new Error(`Webhook POST ${res.status}: ${text}`);
       }
     } finally {
       await close().catch(() => {});
