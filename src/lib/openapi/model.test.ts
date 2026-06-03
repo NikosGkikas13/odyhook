@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { spec } from "./spec";
-import { refName, resolveRef, formatType, getSchemas } from "./model";
+import {
+  refName,
+  resolveRef,
+  formatType,
+  getSchemas,
+  getOperationGroups,
+} from "./model";
 
 describe("refName", () => {
   it("returns the last path segment of a $ref", () => {
@@ -47,5 +53,50 @@ describe("getSchemas", () => {
     expect(source).toBeTruthy();
     const id = source!.fields.find((f) => f.name === "id");
     expect(id?.required).toBe(true);
+  });
+});
+
+describe("getOperationGroups", () => {
+  it("groups operations by resource derived from the path", () => {
+    const groups = getOperationGroups(spec);
+    const resources = groups.map((g) => g.resource);
+    expect(resources).toContain("Sources");
+    expect(resources).toContain("Destinations");
+    expect(resources).toContain("Routes");
+    expect(resources).toContain("Events");
+  });
+
+  it("lists GET and POST on the sources collection", () => {
+    const sources = getOperationGroups(spec).find((g) => g.resource === "Sources")!;
+    const methods = sources.operations
+      .filter((o) => o.path === "/api/v1/sources")
+      .map((o) => o.method);
+    expect(methods).toEqual(expect.arrayContaining(["GET", "POST"]));
+  });
+
+  it("resolves $ref parameters (limit/cursor) on list endpoints", () => {
+    const sources = getOperationGroups(spec).find((g) => g.resource === "Sources")!;
+    const list = sources.operations.find(
+      (o) => o.path === "/api/v1/sources" && o.method === "GET",
+    )!;
+    const names = list.parameters.map((p) => p.name);
+    expect(names).toEqual(expect.arrayContaining(["limit", "cursor"]));
+  });
+
+  it("resolves the request body schema name for create endpoints", () => {
+    const sources = getOperationGroups(spec).find((g) => g.resource === "Sources")!;
+    const create = sources.operations.find(
+      (o) => o.path === "/api/v1/sources" && o.method === "POST",
+    )!;
+    expect(create.requestSchemaRef).toBe("SourceCreate");
+  });
+
+  it("resolves $ref responses to their schema (Unauthorized -> Error)", () => {
+    const sources = getOperationGroups(spec).find((g) => g.resource === "Sources")!;
+    const list = sources.operations.find(
+      (o) => o.path === "/api/v1/sources" && o.method === "GET",
+    )!;
+    const r401 = list.responses.find((r) => r.status === "401")!;
+    expect(r401.schemaRef).toBe("Error");
   });
 });
