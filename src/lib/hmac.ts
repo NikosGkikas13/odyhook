@@ -1,11 +1,22 @@
 import crypto from "node:crypto";
 
+const HEX_RE = /^[0-9a-fA-F]*$/;
+
 /**
  * Constant-time comparison of two hex strings of equal length.
+ *
+ * Validates the hex charset first: a same-length but non-hex input would make
+ * `Buffer.from(_, "hex")` truncate at the first bad pair, yielding a shorter
+ * buffer and a `RangeError` from `timingSafeEqual` (which the ingest handler
+ * mapped to 500). Reject malformed input as a plain mismatch → 401.
  */
 function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  if (!HEX_RE.test(a) || !HEX_RE.test(b)) return false;
+  const bufA = Buffer.from(a, "hex");
+  const bufB = Buffer.from(b, "hex");
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 /**

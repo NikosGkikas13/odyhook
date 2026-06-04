@@ -39,6 +39,12 @@ describe("verifySha256", () => {
     expect(verifySha256(body, sig.slice(0, -2), secret)).toBe(false);
   });
 
+  it("rejects a same-length but non-hex signature without throwing (→401 not 500)", () => {
+    const nonHex = "z".repeat(sig.length);
+    expect(() => verifySha256(body, nonHex, secret)).not.toThrow();
+    expect(verifySha256(body, nonHex, secret)).toBe(false);
+  });
+
   it("rejects a null/undefined/empty header", () => {
     expect(verifySha256(body, null, secret)).toBe(false);
     expect(verifySha256(body, undefined, secret)).toBe(false);
@@ -104,6 +110,12 @@ describe("verifyStripe", () => {
   it("rejects a non-numeric timestamp", () => {
     const v1 = sha256Hex(secret, `notanumber.${body}`);
     expect(verifyStripe(body, `t=notanumber,v1=${v1}`, secret)).toBe(false);
+  });
+
+  it("rejects a non-hex v1 without throwing (→401 not 500)", () => {
+    const badV1 = "g".repeat(64);
+    expect(() => verifyStripe(body, `t=${ts},v1=${badV1}`, secret)).not.toThrow();
+    expect(verifyStripe(body, `t=${ts},v1=${badV1}`, secret)).toBe(false);
   });
 });
 
