@@ -67,8 +67,12 @@ function toDTO(s: SourceRow): SourceDTO {
   };
 }
 
-function randomSlug(): string {
-  return crypto.randomBytes(6).toString("base64url").toLowerCase();
+// 16 random bytes → 128-bit, 22-char base64url slug. The slug is an ambient
+// bearer capability (anyone who knows it can POST to /api/ingest/<slug>), so it
+// must not be guessable at scale — the old 6-byte (~48-bit) slug was. Kept
+// case-sensitive (lookups are exact-match) to preserve the full 128 bits.
+export function randomSlug(): string {
+  return crypto.randomBytes(16).toString("base64url");
 }
 
 export async function createSource(userId: string, input: SourceInput): Promise<SourceDTO> {

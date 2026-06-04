@@ -2,7 +2,7 @@
 import "dotenv/config";
 import { describe, it, expect } from "vitest";
 import { prisma } from "../prisma";
-import { createSource, getSource, listSources, updateSource, deleteSource } from "./sources";
+import { createSource, getSource, listSources, updateSource, deleteSource, randomSlug } from "./sources";
 
 async function makeUser() {
   return prisma.user.create({
@@ -17,7 +17,7 @@ describe("sources service", () => {
     expect(dto.name).toBe("Stripe");
     expect(dto.verifyStyle).toBe("stripe");
     expect(dto.hasSigningSecret).toBe(true);
-    expect(dto.slug).toMatch(/^[a-z0-9_-]+$/);
+    expect(dto.slug).toMatch(/^[A-Za-z0-9_-]+$/);
     expect((dto as Record<string, unknown>).signingSecret).toBeUndefined();
   });
 
@@ -70,5 +70,19 @@ describe("sources service", () => {
     const up = await updateSource(u.id, s.id, {});
     expect(up?.id).toBe(s.id);
     expect(up?.name).toBe("Unchanged");
+  });
+});
+
+describe("randomSlug", () => {
+  it("carries >=128 bits of entropy (>=22 base64url chars)", () => {
+    const s = randomSlug();
+    // 16 random bytes -> 22 unpadded base64url chars (the old 6 bytes was ~48 bits).
+    expect(s.length).toBeGreaterThanOrEqual(22);
+    expect(s).toMatch(/^[A-Za-z0-9_-]+$/);
+  });
+
+  it("does not collide across many draws", () => {
+    const draws = Array.from({ length: 2000 }, () => randomSlug());
+    expect(new Set(draws).size).toBe(draws.length);
   });
 });
