@@ -332,4 +332,14 @@ describe("validateFilterAst", () => {
     ).toThrow(/unknown/);
     expect(() => validateFilterAst({ not: { weird: 1 } })).toThrow(/unknown/);
   });
+
+  it("rejects an over-deep AST with a clean error (no stack overflow)", () => {
+    const nest = (depth: number): unknown => {
+      let node: unknown = { exists: "$.a" };
+      for (let i = 0; i < depth; i++) node = { not: node };
+      return node;
+    };
+    expect(() => validateFilterAst(nest(10))).not.toThrow();
+    expect(() => validateFilterAst(nest(5000))).toThrow(/deep|depth/i);
+  });
 });
