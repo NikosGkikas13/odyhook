@@ -14,6 +14,7 @@ import {
 } from "@/lib/alerts/schema";
 import { parseStoredConfig } from "@/lib/alerts/config";
 import { assertSafeUrl, SsrfError } from "@/lib/ssrf";
+import { checkTestAlertRateLimit } from "@/lib/ratelimit";
 
 // RFC 7230 token: same definition used in src/lib/actions/destinations.ts
 const HEADER_NAME_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
@@ -231,6 +232,12 @@ type TestChannel = (typeof TEST_CHANNELS)[number];
 
 export async function sendTestAlert(formData: FormData): Promise<void> {
   const userId = await requireUserId();
+  // Throttle: each test alert is an outbound fetch (SSRF-validated). Without a
+  // limit a user could spam Slack/webhook endpoints. Reuses the token bucket.
+  const rl = await checkTestAlertRateLimit(userId);
+  if (!rl.allowed) {
+    throw new Error("rate limited: too many test alerts — please wait a moment");
+  }
   const channelRaw = String(formData.get("channel") ?? "");
   if (!TEST_CHANNELS.includes(channelRaw as TestChannel)) {
     throw new Error(`unknown test channel: ${channelRaw}`);

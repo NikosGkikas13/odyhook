@@ -241,3 +241,24 @@ export async function checkApiRateLimit(
 ): Promise<RateLimitResult> {
   return consumeToken(`rl:api:${tokenId}`, cfg);
 }
+
+/**
+ * Per-user limit for the "send test alert" action — each call fires an outbound
+ * fetch, so it needs a throttle. Tight by default; override via
+ * TEST_ALERT_RATE_LIMIT_PER_SEC / TEST_ALERT_RATE_LIMIT_BURST.
+ */
+export function defaultTestAlertConfig(): RateLimitConfig {
+  const refill = Number(process.env.TEST_ALERT_RATE_LIMIT_PER_SEC ?? 0.2);
+  const burst = Number(process.env.TEST_ALERT_RATE_LIMIT_BURST ?? 5);
+  return {
+    refillPerSec: Number.isFinite(refill) && refill > 0 ? refill : 0.2,
+    capacity: Number.isFinite(burst) && burst > 0 ? burst : 5,
+  };
+}
+
+export async function checkTestAlertRateLimit(
+  userId: string,
+  cfg: RateLimitConfig = defaultTestAlertConfig(),
+): Promise<RateLimitResult> {
+  return consumeToken(`rl:testalert:${userId}`, cfg);
+}
