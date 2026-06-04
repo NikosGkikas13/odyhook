@@ -68,4 +68,15 @@ describe("withApiAuth error mapping", () => {
     const h = withApiAuth(async () => new Response("ok"));
     expect((await h(req(), ctx)).status).toBe(401);
   });
+
+  it("maps an unmapped error to a generic 500 (no rethrow to framework)", async () => {
+    const h = withApiAuth(async () => {
+      throw new Error("boom internal detail");
+    });
+    const res = await h(req(JSON.stringify({})), ctx);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error.code).toBe("server_error");
+    expect(JSON.stringify(body)).not.toContain("boom internal detail");
+  });
 });

@@ -53,7 +53,10 @@ export function withApiAuth(fn: Handler) {
       if (err instanceof Error && /not found/i.test(err.message)) {
         return apiError("not_found", err.message);
       }
-      throw err;
+      // Catch-all: log server-side and return a generic JSON 500 so behavior is
+      // explicit regardless of runtime mode (no framework dev-error detail leak).
+      console.error("[api] unhandled error:", err);
+      return apiError("server_error", "internal server error");
     }
   };
 }
