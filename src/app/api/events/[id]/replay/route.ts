@@ -4,16 +4,21 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getDeliveryQueue } from "@/lib/queue";
 import { checkReplayRateLimit } from "@/lib/ratelimit";
+import { isAllowedOrigin } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // CSRF: this route is cookie-authed; require a same-origin request.
+  if (!isAllowedOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
   }
 
   // Per-user replay budget. Fails open on Redis errors — replay is a

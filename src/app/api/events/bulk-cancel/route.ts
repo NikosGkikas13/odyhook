@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { parseBulkIds } from "@/lib/bulk-events";
+import { isAllowedOrigin } from "@/lib/csrf";
 import { readJsonLimited, BodyTooLargeError } from "@/lib/api/body";
 import { prisma } from "@/lib/prisma";
 
@@ -22,6 +23,10 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // CSRF: cookie-authed mutation — require a same-origin request.
+  if (!isAllowedOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
   }
 
   let body: unknown;

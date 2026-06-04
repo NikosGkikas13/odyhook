@@ -8,10 +8,10 @@ vi.mock("@/auth", () => ({ auth: authMock }));
 
 import { POST } from "./route";
 
-function req(body: string): Request {
+function req(body: string, origin = "http://x"): Request {
   return new Request("http://x/api/events/bulk-cancel", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin },
     body,
   });
 }
@@ -34,5 +34,10 @@ describe("POST /api/events/bulk-cancel body limit", () => {
 
   it("400s on invalid JSON", async () => {
     expect((await POST(req("{bad"))).status).toBe(400);
+  });
+
+  it("403s on a cross-site Origin (CSRF)", async () => {
+    const res = await POST(req(JSON.stringify({ ids: ["a"] }), "http://evil.example"));
+    expect(res.status).toBe(403);
   });
 });
