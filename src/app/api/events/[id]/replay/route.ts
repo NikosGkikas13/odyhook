@@ -49,8 +49,11 @@ export async function POST(
     include: {
       source: {
         include: {
+          // Skip routes whose destination is paused — fresh deliveries
+          // against a paused dest would be immediately exhausted by the
+          // worker. Matches ingest and bulk-replay.
           routes: {
-            where: { enabled: true },
+            where: { enabled: true, destination: { enabled: true } },
           },
         },
       },
