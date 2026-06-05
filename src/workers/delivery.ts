@@ -6,6 +6,8 @@ import "dotenv/config";
 import * as Sentry from "@sentry/nextjs";
 import { Worker, type Job } from "bullmq";
 
+import { scrubSentryEvent } from "../lib/sentry-scrub";
+
 // Initialise Sentry early so any import-time errors below are captured.
 // Disabled automatically when SENTRY_DSN is unset (local dev).
 Sentry.init({
@@ -13,6 +15,8 @@ Sentry.init({
   enabled: !!process.env.SENTRY_DSN,
   tracesSampleRate: 0.1,
   environment: process.env.NODE_ENV,
+  sendDefaultPii: false,
+  beforeSend: scrubSentryEvent,
 });
 
 import { prisma } from "../lib/prisma";
