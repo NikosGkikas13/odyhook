@@ -1,6 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { isPrivateIp, parseSafeUrl, SsrfError } from "./ssrf";
+// Mock DNS resolution so the async path (resolveSafe / assertSafeUrl) is
+// deterministic and offline. The sync tests below don't touch DNS.
+const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }));
+vi.mock("node:dns", () => ({ promises: { lookup: lookupMock } }));
+
+import {
+  isPrivateIp,
+  parseSafeUrl,
+  resolveSafe,
+  assertSafeUrl,
+  SsrfError,
+} from "./ssrf";
 
 describe("isPrivateIp", () => {
   it.each([
@@ -95,5 +106,85 @@ describe("parseSafeUrl", () => {
 
   it("rejects malformed URLs", () => {
     expect(() => parseSafeUrl("not a url")).toThrow(SsrfError);
+  });
+});
+
+describe("resolveSafe", () => {
+  beforeEach(() => {
+    lookupMock.mockReset();
+  });
+
+  it("returns a literal public IP without consulting DNS", async () => {
+    const { url, ips } = await resolveSafe("http://93.184.216.34/hook");
+    expect(url.hostname).toBe("93.184.216.34");
+    expect(ips).toEqual(["93.184.216.34"]);
+    expect(lookupMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a literal private IP without consulting DNS", async () => {
+    await expect(resolveSafe("http://169.254.169.254/")).rejects.toThrow(
+      SsrfError,
+    );
+    expect(lookupMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves a hostname and returns every public address", async () => {
+    lookupMock.mockResolvedValue([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+    const { url, ips } = await resolveSafe("https://api.example.com/hook");
+    expect(url.hostname).toBe("api.example.com");
+    expect(ips).toEqual([
+      "93.184.216.34",
+      "2606:2800:220:1:248:1893:25c8:1946",
+    ]);
+  });
+
+  it("rejects when ANY resolved address is private (rebinding/multi-record)", async () => {
+    lookupMock.mockResolvedValue([
+      { address: "93.184.216.34", family: 4 },
+      { address: "169.254.169.254", family: 4 },
+    ]);
+    await expect(resolveSafe("https://rebind.example.com/")).rejects.toThrow(
+      SsrfError,
+    );
+  });
+
+  it("rejects when DNS returns no addresses", async () => {
+    lookupMock.mockResolvedValue([]);
+    await expect(resolveSafe("https://void.example.com/")).rejects.toThrow(
+      SsrfError,
+    );
+  });
+
+  it("rejects when DNS lookup itself fails", async () => {
+    lookupMock.mockRejectedValue(new Error("ENOTFOUND"));
+    await expect(resolveSafe("https://nope.example.com/")).rejects.toThrow(
+      SsrfError,
+    );
+  });
+
+  it("still rejects disallowed schemes (delegates to parseSafeUrl)", async () => {
+    await expect(resolveSafe("file:///etc/passwd")).rejects.toThrow(SsrfError);
+  });
+});
+
+describe("assertSafeUrl (built on resolveSafe)", () => {
+  beforeEach(() => {
+    lookupMock.mockReset();
+  });
+
+  it("returns the parsed URL for a public host", async () => {
+    lookupMock.mockResolvedValue([{ address: "1.1.1.1", family: 4 }]);
+    const url = await assertSafeUrl("https://ok.example.com/path");
+    expect(url.hostname).toBe("ok.example.com");
+  });
+
+  it("throws SsrfError for a host that resolves private", async () => {
+    lookupMock.mockResolvedValue([{ address: "10.0.0.9", family: 4 }]);
+    await expect(assertSafeUrl("https://evil.example.com/")).rejects.toThrow(
+      SsrfError,
+    );
   });
 });

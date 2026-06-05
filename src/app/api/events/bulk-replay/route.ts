@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { parseBulkIds } from "@/lib/bulk-events";
+import { isAllowedOrigin } from "@/lib/csrf";
+import { readJsonLimited, BodyTooLargeError } from "@/lib/api/body";
 import { prisma } from "@/lib/prisma";
 import { getDeliveryQueue } from "@/lib/queue";
 import { checkReplayRateLimit } from "@/lib/ratelimit";
@@ -18,11 +20,18 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // CSRF: cookie-authed mutation — require a same-origin request.
+  if (!isAllowedOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonLimited(req);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      return NextResponse.json({ error: "request body too large" }, { status: 413 });
+    }
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
   const parsed = parseBulkIds(body);

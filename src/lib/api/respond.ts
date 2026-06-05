@@ -5,7 +5,9 @@ export type ErrorCode =
   | "not_found"
   | "validation_error"
   | "rate_limited"
-  | "conflict";
+  | "conflict"
+  | "payload_too_large"
+  | "server_error";
 
 const STATUS: Record<ErrorCode, number> = {
   unauthorized: 401,
@@ -13,6 +15,8 @@ const STATUS: Record<ErrorCode, number> = {
   validation_error: 400,
   rate_limited: 429,
   conflict: 409,
+  payload_too_large: 413,
+  server_error: 500,
 };
 
 export function apiError(

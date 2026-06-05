@@ -6,6 +6,9 @@ import "dotenv/config";
 import * as Sentry from "@sentry/nextjs";
 import { Worker, type Job } from "bullmq";
 
+import { scrubSentryEvent } from "../lib/sentry-scrub";
+import { assertProdSecrets } from "../lib/env-check";
+
 // Initialise Sentry early so any import-time errors below are captured.
 // Disabled automatically when SENTRY_DSN is unset (local dev).
 Sentry.init({
@@ -13,7 +16,12 @@ Sentry.init({
   enabled: !!process.env.SENTRY_DSN,
   tracesSampleRate: 0.1,
   environment: process.env.NODE_ENV,
+  sendDefaultPii: false,
+  beforeSend: scrubSentryEvent,
 });
+
+// Fail fast if a placeholder secret slipped into a production deploy.
+assertProdSecrets();
 
 import { prisma } from "../lib/prisma";
 import { decrypt, decryptJson } from "../lib/crypto";
@@ -24,7 +32,8 @@ import {
 } from "../lib/outbound-sign";
 import { runTransformation } from "../lib/sandbox/quickjs";
 import { evaluateFilter, type FilterAst } from "../lib/filters/evaluator";
-import { assertSafeUrl, SsrfError } from "../lib/ssrf";
+import { SsrfError } from "../lib/ssrf";
+import { safeFetch, readCappedText } from "../lib/safe-fetch";
 import { SENSITIVE_HEADERS } from "../lib/sensitive-headers";
 import {
   DELIVERY_QUEUE,
@@ -250,20 +259,32 @@ async function processDelivery(job: Job<DeliveryJob>) {
     // Skip the fetch entirely — fall through to the failure/retry branch.
     clearTimeout(timeout);
   } else try {
-    // Re-validate at delivery time: defends against DNS rebinding, and
-    // catches destinations that were created before the SSRF guard landed.
-    await assertSafeUrl(delivery.destination.url);
-    const res = await fetch(delivery.destination.url, {
+    // safeFetch resolves + validates the URL once and pins the socket to that
+    // exact IP with redirects disabled (see src/lib/safe-fetch.ts). This is the
+    // real SSRF enforcement — it defeats both the redirect bypass and the
+    // DNS-rebinding TOCTOU that a bare assertSafeUrl()+fetch() left open. A 3xx
+    // is returned verbatim (not followed) and falls into the HTTP-error path
+    // below; create-time assertSafeUrl on the destination is best-effort UX only.
+    const { res, close } = await safeFetch(delivery.destination.url, {
       method: delivery.event.method,
       headers,
       body,
       signal: controller.signal,
     });
-    responseCode = res.status;
-    const text = await res.text().catch(() => "");
-    responseSnippet = text.slice(0, 2048);
-    if (!res.ok) {
-      errorMsg = `HTTP ${res.status}`;
+    try {
+      responseCode = res.status;
+      // Cap the body read: res.text() would buffer the entire response (the
+      // AbortController timeout bounds time, not bytes — a fast server can push
+      // gigabytes within it). readCappedText keeps ~2 KB and cancels the rest.
+      // Swallow read errors → empty snippet, preserving prior behavior: a
+      // delivered 2xx shouldn't be failed just because the snippet read hiccuped.
+      responseSnippet = await readCappedText(res.body, 2048).catch(() => "");
+      if (!res.ok) {
+        errorMsg = `HTTP ${res.status}`;
+      }
+    } finally {
+      // Release the pinned connection now that the body is read.
+      await close().catch(() => {});
     }
   } catch (err) {
     if (err instanceof SsrfError) {

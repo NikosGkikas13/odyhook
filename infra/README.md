@@ -398,7 +398,7 @@ Call these out before assuming they exist:
 - **No CI tests before deploy.** Failures caught only at server-side build.
 - **No off-site backup of `.env`.** See [recovery.md](recovery.md#lost-env-file) for the consequences.
 - **No alerting on cron failures.** Backup script could silently fail; nothing pages you.
-- **No HSTS preload, CSP, or extra security headers.** Default Caddy config.
+- **Security headers** are set in `next.config.ts` (HSTS, X-Frame-Options: DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and a `frame-ancestors`/`base-uri`/`object-src` CSP). A strict `script-src` CSP (needs per-request nonces via middleware) is still **not** set.
 - **No rate-limit alerting.** Per-source 429s land in the dashboard but don't notify the source owner.
 - **No automated DB restore drill.** Untested backups are wishful thinking — see recovery.md for a manual procedure.
 

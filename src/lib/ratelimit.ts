@@ -88,32 +88,83 @@ export function defaultConfig(): RateLimitConfig {
   };
 }
 
+// ── Redis-independent fallback ──────────────────────────────────────────────
+// The Redis token bucket is the only request-rate control, and every call site
+// fails open if it throws — so any Redis disruption removes all rate limiting
+// at once. To keep a coarse ceiling during an outage we mirror the bucket in
+// process memory and consume from it whenever the Lua call fails. It's per
+// instance (not shared) and bounded in size, but it stops the limiter from
+// vanishing entirely when it's needed most.
+const FALLBACK_MAX_BUCKETS = 10_000;
+const fallbackBuckets = new Map<string, { tokens: number; ts: number }>();
+
+/**
+ * Process-local token bucket with the same refill semantics as the Lua script.
+ * `now` is injectable for tests; production passes Date.now().
+ */
+export function checkFallbackLimit(
+  key: string,
+  cfg: RateLimitConfig,
+  now: number = Date.now(),
+): RateLimitResult {
+  let bucket = fallbackBuckets.get(key);
+  if (!bucket) {
+    // Bound memory: evict the oldest-inserted bucket once we hit the cap.
+    if (fallbackBuckets.size >= FALLBACK_MAX_BUCKETS) {
+      const oldest = fallbackBuckets.keys().next().value;
+      if (oldest !== undefined) fallbackBuckets.delete(oldest);
+    }
+    bucket = { tokens: cfg.capacity, ts: now };
+    fallbackBuckets.set(key, bucket);
+  }
+
+  const elapsed = Math.max(0, now - bucket.ts) / 1000;
+  bucket.tokens = Math.min(cfg.capacity, bucket.tokens + elapsed * cfg.refillPerSec);
+  bucket.ts = now;
+
+  if (bucket.tokens >= 1) {
+    bucket.tokens -= 1;
+    return { allowed: true, tokensRemaining: bucket.tokens, retryAfterMs: 0 };
+  }
+  const needed = 1 - bucket.tokens;
+  const retryAfterMs =
+    cfg.refillPerSec > 0 ? Math.ceil((needed / cfg.refillPerSec) * 1000) : 1000;
+  return { allowed: false, tokensRemaining: bucket.tokens, retryAfterMs };
+}
+
 async function consumeToken(
   key: string,
   cfg: RateLimitConfig,
 ): Promise<RateLimitResult> {
-  const conn = getConnection();
   // TTL = time to refill a full bucket from empty, plus a small buffer.
   const ttlSec = Math.max(
     60,
     Math.ceil(cfg.capacity / Math.max(cfg.refillPerSec, 0.01)) + 60,
   );
 
-  const raw = (await conn.eval(
-    LUA_SCRIPT,
-    1,
-    key,
-    String(Math.floor(cfg.capacity)),
-    String(cfg.refillPerSec),
-    String(Date.now()),
-    String(ttlSec),
-  )) as [number, string, number];
+  try {
+    const conn = getConnection();
+    const raw = (await conn.eval(
+      LUA_SCRIPT,
+      1,
+      key,
+      String(Math.floor(cfg.capacity)),
+      String(cfg.refillPerSec),
+      String(Date.now()),
+      String(ttlSec),
+    )) as [number, string, number];
 
-  return {
-    allowed: raw[0] === 1,
-    tokensRemaining: Number(raw[1]),
-    retryAfterMs: Number(raw[2]),
-  };
+    return {
+      allowed: raw[0] === 1,
+      tokensRemaining: Number(raw[1]),
+      retryAfterMs: Number(raw[2]),
+    };
+  } catch (err) {
+    // Redis unavailable: don't fail fully open — enforce the process-local
+    // backstop so flooding during an outage is still bounded.
+    console.error("[ratelimit] Redis limiter failed; using in-process fallback:", err);
+    return checkFallbackLimit(key, cfg);
+  }
 }
 
 /**
@@ -189,4 +240,25 @@ export async function checkApiRateLimit(
   cfg: RateLimitConfig = defaultApiConfig(),
 ): Promise<RateLimitResult> {
   return consumeToken(`rl:api:${tokenId}`, cfg);
+}
+
+/**
+ * Per-user limit for the "send test alert" action — each call fires an outbound
+ * fetch, so it needs a throttle. Tight by default; override via
+ * TEST_ALERT_RATE_LIMIT_PER_SEC / TEST_ALERT_RATE_LIMIT_BURST.
+ */
+export function defaultTestAlertConfig(): RateLimitConfig {
+  const refill = Number(process.env.TEST_ALERT_RATE_LIMIT_PER_SEC ?? 0.2);
+  const burst = Number(process.env.TEST_ALERT_RATE_LIMIT_BURST ?? 5);
+  return {
+    refillPerSec: Number.isFinite(refill) && refill > 0 ? refill : 0.2,
+    capacity: Number.isFinite(burst) && burst > 0 ? burst : 5,
+  };
+}
+
+export async function checkTestAlertRateLimit(
+  userId: string,
+  cfg: RateLimitConfig = defaultTestAlertConfig(),
+): Promise<RateLimitResult> {
+  return consumeToken(`rl:testalert:${userId}`, cfg);
 }

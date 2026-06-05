@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { encrypt, encryptJson } from "@/lib/crypto";
 import { assertSafeUrl, SsrfError } from "@/lib/ssrf";
+import { assertWithinQuota } from "@/lib/quota";
 import type { Page } from "@/lib/api/respond";
 
 // RFC 7230 token chars for header names.
@@ -110,6 +111,7 @@ export async function createDestination(
   input: DestinationInput,
 ): Promise<DestinationDTO> {
   const parsed = destinationCreateSchema.parse(input);
+  await assertWithinQuota(userId, "destinations");
   const headers = parseHeaders(parsed.headers);
   const hasHeaders = Object.keys(headers).length > 0;
   const outboundSecret = parsed.outboundSecret?.trim() || null;

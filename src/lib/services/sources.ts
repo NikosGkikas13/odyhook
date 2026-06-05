@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
+import { assertWithinQuota } from "@/lib/quota";
 import type { Page } from "@/lib/api/respond";
 
 const VERIFY_STYLES = ["none", "stripe", "github", "generic-sha256"] as const;
@@ -66,12 +67,17 @@ function toDTO(s: SourceRow): SourceDTO {
   };
 }
 
-function randomSlug(): string {
-  return crypto.randomBytes(6).toString("base64url").toLowerCase();
+// 16 random bytes → 128-bit, 22-char base64url slug. The slug is an ambient
+// bearer capability (anyone who knows it can POST to /api/ingest/<slug>), so it
+// must not be guessable at scale — the old 6-byte (~48-bit) slug was. Kept
+// case-sensitive (lookups are exact-match) to preserve the full 128 bits.
+export function randomSlug(): string {
+  return crypto.randomBytes(16).toString("base64url");
 }
 
 export async function createSource(userId: string, input: SourceInput): Promise<SourceDTO> {
   const parsed = sourceCreateSchema.parse(input);
+  await assertWithinQuota(userId, "sources");
   const created = await prisma.source.create({
     data: {
       userId,

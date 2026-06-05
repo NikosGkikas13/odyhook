@@ -46,3 +46,6 @@ next-env.d.ts
 .claude/
 issues.md
 monetize.md
+# Security audit kept local: the repo is public and the doc enumerates
+# still-open findings with attack steps + file:line. Don't publish.
+SECURITY_AUDIT.md

@@ -38,4 +38,26 @@ describe("authenticateApiToken", () => {
 
     expect(await authenticateApiToken(req("Bearer ody_"))).toBeNull();
   });
+
+  it("rejects an expired token but accepts one expiring in the future", async () => {
+    const u = await makeUser();
+
+    const past = generateToken();
+    await prisma.apiToken.create({
+      data: {
+        userId: u.id, name: "past", tokenHash: past.hash, prefix: past.prefix,
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    });
+    expect(await authenticateApiToken(req(`Bearer ${past.raw}`))).toBeNull();
+
+    const future = generateToken();
+    await prisma.apiToken.create({
+      data: {
+        userId: u.id, name: "future", tokenHash: future.hash, prefix: future.prefix,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    expect((await authenticateApiToken(req(`Bearer ${future.raw}`)))?.userId).toBe(u.id);
+  });
 });

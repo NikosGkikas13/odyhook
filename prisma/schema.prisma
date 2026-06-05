@@ -55,6 +55,7 @@ model ApiToken {
   prefix     String // first chars shown in UI: "ody_a1b2"
   lastUsedAt DateTime?
   revokedAt  DateTime?
+  expiresAt  DateTime? // optional hard expiry; enforced in authenticateApiToken
   createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

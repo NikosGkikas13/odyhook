@@ -5,7 +5,7 @@ export type ApiAuth = { userId: string; tokenId: string };
 
 /**
  * Resolve an `Authorization: Bearer ody_…` header to its owner. Returns null
- * for missing/malformed/unknown/revoked tokens — callers respond 401.
+ * for missing/malformed/unknown/revoked/expired tokens — callers respond 401.
  */
 export async function authenticateApiToken(req: Request): Promise<ApiAuth | null> {
   const raw = parseBearer(req.headers.get("authorization"));
@@ -13,6 +13,8 @@ export async function authenticateApiToken(req: Request): Promise<ApiAuth | null
 
   const token = await prisma.apiToken.findUnique({ where: { tokenHash: hashToken(raw) } });
   if (!token || token.revokedAt) return null;
+  // Optional hard expiry: a token past expiresAt is rejected like a revoked one.
+  if (token.expiresAt && token.expiresAt.getTime() <= Date.now()) return null;
 
   // Fire-and-forget last-used bump; never block or fail the request on it.
   prisma.apiToken

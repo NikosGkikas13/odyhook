@@ -152,7 +152,16 @@ export function evaluateFilter(ast: FilterAst, event: unknown): boolean {
  * or returned by Claude). Rejects unknown keys, wrong shapes, and nested
  * invalid children. Throws with a descriptive message on failure.
  */
-export function validateFilterAst(input: unknown): FilterAst {
+// Cap nesting depth so a deeply-nested AST (via set_route_filter / create_route
+// / saveRule) can't overflow the stack during validation. Generous vs real
+// filters (a few levels); total node count is already bounded by the JSON body
+// cap (readJsonLimited).
+const MAX_FILTER_DEPTH = 100;
+
+export function validateFilterAst(input: unknown, depth = 0): FilterAst {
+  if (depth > MAX_FILTER_DEPTH) {
+    throw new Error(`filter nesting too deep (max ${MAX_FILTER_DEPTH})`);
+  }
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("filter must be an object");
   }
@@ -170,10 +179,10 @@ export function validateFilterAst(input: unknown): FilterAst {
       if (!Array.isArray(val) || val.length === 0) {
         throw new Error(`${key} must be a non-empty array`);
       }
-      return { [key]: val.map(validateFilterAst) } as FilterAst;
+      return { [key]: val.map((c) => validateFilterAst(c, depth + 1)) } as FilterAst;
     }
     case "not":
-      return { not: validateFilterAst(val) };
+      return { not: validateFilterAst(val, depth + 1) };
     case "eq":
     case "neq":
     case "in":

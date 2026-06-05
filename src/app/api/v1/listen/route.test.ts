@@ -2,6 +2,11 @@ import "dotenv/config";
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { generateToken } from "@/lib/api/token";
+import {
+  acquireSseSlot,
+  releaseSseSlot,
+  maxStreamsPerUser,
+} from "@/lib/sse-limit";
 import { GET } from "./route";
 
 async function makeUserWithToken() {
@@ -53,5 +58,21 @@ describe("GET /api/v1/listen", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     await res.body?.cancel();
+  });
+
+  it("429s once the per-user concurrent-stream cap is reached", async () => {
+    const { user, raw } = await makeUserWithToken();
+    const src = await prisma.source.create({
+      data: { userId: user.id, name: "C", slug: `c-${Date.now()}-${Math.random().toString(36).slice(2)}` },
+    });
+    // Saturate the user's slots; the handler must reject before opening a stream.
+    const cap = maxStreamsPerUser();
+    for (let i = 0; i < cap; i++) acquireSseSlot(user.id);
+    try {
+      const res = await GET(req(`https://x/api/v1/listen?source=${src.slug}`, raw), ctx);
+      expect(res.status).toBe(429);
+    } finally {
+      for (let i = 0; i < cap; i++) releaseSseSlot(user.id);
+    }
   });
 });

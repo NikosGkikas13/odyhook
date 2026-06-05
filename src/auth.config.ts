@@ -8,7 +8,11 @@ export default {
     signIn: "/signin",
     verifyRequest: "/signin/verify",
   },
-  session: { strategy: "jwt" },
+  // JWT sessions can't be revoked server-side (only AUTH_SECRET rotation
+  // invalidates them), so cap the lifetime well below NextAuth's 30-day default
+  // to bound a stolen token's usefulness. A jti/token-version deny-list for
+  // forced logout remains a possible follow-up.
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
   callbacks: {
     authorized({ auth }) {
       return !!auth?.user;

@@ -1,5 +1,6 @@
 import { authenticateApiToken } from "@/lib/api/authenticate";
 import { checkApiRateLimit } from "@/lib/ratelimit";
+import { readJsonLimited, BodyTooLargeError } from "@/lib/api/body";
 import { handleMessage, type JsonRpcRequest, type JsonRpcResponse } from "@/lib/mcp/server";
 
 export const runtime = "nodejs";
@@ -29,8 +30,14 @@ export async function POST(req: Request): Promise<Response> {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonLimited(req);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      return json(
+        { jsonrpc: "2.0", id: null, error: { code: -32600, message: "request body too large" } },
+        413,
+      );
+    }
     return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }, 400);
   }
 

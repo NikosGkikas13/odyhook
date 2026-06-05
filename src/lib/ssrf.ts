@@ -5,13 +5,19 @@
 // destination at a cloud-metadata endpoint (169.254.169.254), an internal DB
 // (10.0.0.0/8), or localhost services that the worker process can reach.
 //
-// Two entry points:
+// Three entry points:
 //   - parseSafeUrl(raw)    — sync: validates scheme, credentials, and IP literals.
-//   - assertSafeUrl(raw)   — async: also resolves DNS and rejects private targets.
+//   - resolveSafe(raw)     — async: also resolves DNS, rejects private targets,
+//                            and returns the validated IP(s) so the caller can
+//                            *pin* the outbound connection to exactly those
+//                            addresses (defeats DNS-rebinding TOCTOU — the IP the
+//                            guard validated is the IP the socket connects to).
+//   - assertSafeUrl(raw)   — async: resolveSafe but discards the IPs, for
+//                            create-time validation where no fetch follows.
 //
-// Both throw SsrfError on failure. Call assertSafeUrl when you have an event
-// loop available (server actions, the worker); call parseSafeUrl from places
-// where DNS isn't reachable.
+// All throw SsrfError on failure. Call resolveSafe/assertSafeUrl when you have an
+// event loop available (server actions, the worker); call parseSafeUrl from
+// places where DNS isn't reachable.
 
 import { promises as dns } from "node:dns";
 import net from "node:net";
@@ -121,10 +127,15 @@ export function parseSafeUrl(rawUrl: string): URL {
   return url;
 }
 
-export async function assertSafeUrl(rawUrl: string): Promise<URL> {
+export async function resolveSafe(
+  rawUrl: string,
+): Promise<{ url: URL; ips: string[] }> {
   const url = parseSafeUrl(rawUrl);
   const host = stripBrackets(url.hostname);
-  if (net.isIP(host)) return url;
+  if (net.isIP(host)) {
+    // parseSafeUrl already rejected private IP literals, so this host is safe.
+    return { url, ips: [host] };
+  }
 
   let addresses: { address: string; family: number }[];
   try {
@@ -136,6 +147,8 @@ export async function assertSafeUrl(rawUrl: string): Promise<URL> {
   if (addresses.length === 0) {
     throw new SsrfError(`DNS returned no addresses for ${host}`);
   }
+  // Reject if ANY returned address is private: a host that resolves to a mix of
+  // public and private addresses (or flips between them) must not be reachable.
   for (const a of addresses) {
     if (isPrivateIp(a.address)) {
       throw new SsrfError(
@@ -143,5 +156,9 @@ export async function assertSafeUrl(rawUrl: string): Promise<URL> {
       );
     }
   }
-  return url;
+  return { url, ips: addresses.map((a) => a.address) };
+}
+
+export async function assertSafeUrl(rawUrl: string): Promise<URL> {
+  return (await resolveSafe(rawUrl)).url;
 }

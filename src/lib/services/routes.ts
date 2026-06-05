@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { validateFilterAst, type FilterAst } from "@/lib/filters/evaluator";
 
 import { prisma } from "@/lib/prisma";
+import { assertWithinQuota } from "@/lib/quota";
 import type { Page } from "@/lib/api/respond";
 
 export const routeCreateSchema = z.object({
@@ -58,6 +59,7 @@ export async function createRoute(userId: string, input: RouteInput): Promise<Ro
     prisma.destination.findFirst({ where: { id: parsed.destinationId, userId } }),
   ]);
   if (!source || !destination) throw new Error("not found");
+  await assertWithinQuota(userId, "routes");
 
   const existing = await prisma.route.findUnique({
     where: { sourceId_destinationId: { sourceId: parsed.sourceId, destinationId: parsed.destinationId } },
