@@ -44,6 +44,11 @@ import {
   type DeliveryJob,
 } from "../lib/queue";
 import { recordSuccess, recordExhausted } from "../lib/circuit-breaker";
+import {
+  claimDelivery,
+  findStalledDeliveryIds,
+  IN_FLIGHT_GRACE_MS,
+} from "../lib/delivery-claim";
 import { composeDestinationDisabledEmail } from "../lib/emails/destination-disabled";
 import { sendMail } from "../lib/mailer";
 import { startAlertWorker, stopAlertWorker } from "./alerts";
@@ -167,14 +172,17 @@ async function processDelivery(job: Job<DeliveryJob>) {
     }
   }
 
-  // Mark in-flight up front so concurrent BullMQ retries don't
-  // double-process. attemptCount is *not* incremented here: a worker
-  // that crashes mid-fetch would otherwise burn an attempt without
-  // having made the HTTP call. The terminal updates below increment.
-  await prisma.delivery.update({
-    where: { id: deliveryId },
-    data: { status: "in_flight" },
-  });
+  // Atomically claim the row before doing any external work. The CAS only
+  // wins from pending/failed (or an orphaned, long-stale in_flight); if a
+  // concurrent job already holds it — e.g. the original slow job racing a
+  // reaper re-enqueue — claimDelivery returns false and we bail so the
+  // destination is POSTed exactly once. attemptCount is *not* incremented
+  // here: a worker that crashes mid-fetch would otherwise burn an attempt
+  // without having made the HTTP call. The terminal updates below increment.
+  if (!(await claimDelivery(deliveryId))) {
+    console.log(`[worker] ${deliveryId} already claimed — skipping`);
+    return;
+  }
 
   const attempt = delivery.attemptCount + 1; // this attempt's number
 
@@ -453,17 +461,22 @@ const alertWorker = startAlertWorker();
 // Hold the reference so shutdown can close it cleanly.
 void alertWorker;
 
-// Reaper: re-enqueue deliveries that have been stuck in `pending` for
-// too long. Covers the gap between `prisma.event.create` and
-// `queue.add` in the ingest handler — if the enqueue fails (Redis
-// hiccup, process crash mid-call), the row exists in Postgres but no
-// job exists in BullMQ. Without this loop those rows would never be
-// processed.
+// Reaper: re-enqueue deliveries that have stalled. Two cases:
 //
-// Only `pending` is reaped here. `in_flight` orphans from a crashed
-// worker are handled by BullMQ's own stalled-job detection (lock
-// expiry re-queues the job), and reaping them in parallel risks
-// double-delivery while the original worker is still alive.
+//   1. `pending` rows older than PENDING_GRACE_MS — covers the gap between
+//      `prisma.event.create` and `queue.add` in the ingest handler: if the
+//      enqueue fails (Redis hiccup, crash mid-call) the row exists in Postgres
+//      but no BullMQ job does, and nothing else would ever process it.
+//
+//   2. `in_flight` rows older than IN_FLIGHT_GRACE_MS — a worker claimed the
+//      row then died or *threw after the claim* (e.g. a transient Postgres
+//      error on the terminal update). BullMQ's stalled-job detection only
+//      re-queues when the worker process dies without renewing its lock; a
+//      handler that throws completes the job as `failed` (attempts:1) and
+//      leaves the row orphaned in `in_flight`, invisible to a pending-only
+//      reaper. The compare-and-swap in claimDelivery makes this safe: a
+//      re-enqueue can only re-claim an in_flight row once it is long-stale, so
+//      a still-live original is never double-delivered.
 const REAPER_INTERVAL_MS = Number(
   process.env.DELIVERY_REAPER_INTERVAL_MS ?? 60_000,
 );
@@ -473,24 +486,20 @@ const PENDING_GRACE_MS = Number(
 const REAPER_BATCH_SIZE = 200;
 
 async function reapStalledDeliveries() {
-  const cutoff = new Date(Date.now() - PENDING_GRACE_MS);
-  const stalled = await prisma.delivery.findMany({
-    where: {
-      status: "pending",
-      createdAt: { lt: cutoff },
-    },
-    select: { id: true },
+  const now = Date.now();
+  const stalled = await findStalledDeliveryIds({
+    pendingBefore: new Date(now - PENDING_GRACE_MS),
+    inFlightBefore: new Date(now - IN_FLIGHT_GRACE_MS),
     take: REAPER_BATCH_SIZE,
-    orderBy: { createdAt: "asc" },
   });
   if (stalled.length === 0) return;
   const queue = getDeliveryQueue();
   await Promise.all(
-    stalled.map((d) =>
+    stalled.map((id) =>
       queue.add(
         "deliver",
-        { deliveryId: d.id },
-        { jobId: `reap:${d.id}:${Date.now()}` },
+        { deliveryId: id },
+        { jobId: `reap:${id}:${now}` },
       ),
     ),
   );
