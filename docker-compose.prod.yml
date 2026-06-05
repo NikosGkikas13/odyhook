@@ -1,3 +1,6 @@
+# Per-service mem_limit/pids_limit below are conservative caps (host is a 4 GB /
+# 2 vCPU CX23) so one runaway container can't take down the host; tune to taste.
+# They don't reserve memory, only cap it.
 services:
   postgres:
     image: postgres:16-alpine
@@ -6,6 +9,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    mem_limit: 1g
+    pids_limit: 256
     volumes:
       - odyhook_pg:/var/lib/postgresql/data
     healthcheck:
@@ -17,10 +22,20 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Optional auth (defense-in-depth on the internal network): set REDIS_PASSWORD
+    # in .env AND update REDIS_URL to redis://:<password>@redis:6379. Empty
+    # REDIS_PASSWORD => plain `redis-server` (unchanged default, no auth), so this
+    # is a no-op until you opt in. The container shell expands ${REDIS_PASSWORD}
+    # ($$ defers expansion past Compose interpolation).
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "exec redis-server $${REDIS_PASSWORD:+--requirepass \"$$REDIS_PASSWORD\"}"]
+    mem_limit: 512m
+    pids_limit: 256
     volumes:
       - odyhook_redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} ping | grep -q PONG"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,6 +49,8 @@ services:
     image: odyhook-app:latest
     restart: unless-stopped
     env_file: .env
+    mem_limit: 1536m
+    pids_limit: 512
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +62,8 @@ services:
     image: odyhook-app:latest
     restart: unless-stopped
     env_file: .env
+    mem_limit: 1g
+    pids_limit: 512
     depends_on:
       web:
         condition: service_started
@@ -53,6 +72,8 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 128
     ports:
       - "80:80"
       - "443:443"
