@@ -76,15 +76,34 @@ function toNumber(v: unknown): number | null {
 }
 
 /**
- * Evaluate a filter AST against an event. Returns true if the event passes.
- * An invalid or unrecognised node returns false (fail-closed).
+ * Internal tri-state evaluation. Returns `true`/`false` for a recognised node,
+ * or `null` when the node (or any descendant) is invalid/unrecognised.
+ *
+ * The `null` sentinel propagates *through* `and`/`or`/`not` rather than
+ * collapsing to a boolean. This is what makes the fail-closed guarantee hold
+ * under negation: `not(invalid)` stays `null` (→ false at the boundary), so a
+ * malformed sub-node can never flip the filter to "forward". A `null` child
+ * also poisons `and`/`or` so a corrupted slice of the AST can't be silently
+ * ignored. For fully valid ASTs no node returns `null`, so behaviour is
+ * identical to plain boolean logic.
  */
-export function evaluateFilter(ast: FilterAst, event: unknown): boolean {
-  if (!ast || typeof ast !== "object") return false;
+function evalNode(ast: FilterAst, event: unknown): boolean | null {
+  if (!ast || typeof ast !== "object") return null;
 
-  if ("and" in ast) return ast.and.every((n) => evaluateFilter(n, event));
-  if ("or" in ast) return ast.or.some((n) => evaluateFilter(n, event));
-  if ("not" in ast) return !evaluateFilter(ast.not, event);
+  if ("and" in ast) {
+    const rs = ast.and.map((n) => evalNode(n, event));
+    if (rs.some((r) => r === null)) return null;
+    return rs.every((r) => r === true);
+  }
+  if ("or" in ast) {
+    const rs = ast.or.map((n) => evalNode(n, event));
+    if (rs.some((r) => r === null)) return null;
+    return rs.some((r) => r === true);
+  }
+  if ("not" in ast) {
+    const r = evalNode(ast.not, event);
+    return r === null ? null : !r;
+  }
 
   if ("eq" in ast) {
     const [p, lit] = ast.eq;
@@ -144,7 +163,17 @@ export function evaluateFilter(ast: FilterAst, event: unknown): boolean {
     return readPath(event, ast.exists) !== undefined;
   }
 
-  return false;
+  return null;
+}
+
+/**
+ * Evaluate a filter AST against an event. Returns true only if the event
+ * passes. An invalid or unrecognised node — at any depth, including under a
+ * `not` — fails closed (returns false), so a malformed (e.g. hand-edited) AST
+ * can never cause an event to be forwarded.
+ */
+export function evaluateFilter(ast: FilterAst, event: unknown): boolean {
+  return evalNode(ast, event) === true;
 }
 
 /**

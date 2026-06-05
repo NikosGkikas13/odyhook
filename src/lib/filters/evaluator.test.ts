@@ -252,6 +252,38 @@ describe("evaluateFilter — fail-closed behaviour", () => {
     // @ts-expect-error intentionally invalid
     expect(evaluateFilter(undefined, sample)).toBe(false);
   });
+
+  it("does not forward when an unknown node sits under `not`", () => {
+    // Without tri-state, `not(false)` flips an invalid node to true (forward).
+    // @ts-expect-error intentionally invalid
+    expect(evaluateFilter({ not: { weird: 1 } }, sample)).toBe(false);
+  });
+
+  it("stays fail-closed through nested negation of an invalid node", () => {
+    // @ts-expect-error intentionally invalid
+    expect(evaluateFilter({ not: { not: { weird: 1 } } }, sample)).toBe(false);
+  });
+
+  it("an invalid child poisons `and` (fail-closed)", () => {
+    expect(
+      // @ts-expect-error intentionally invalid child
+      evaluateFilter({ and: [{ eq: ["$.type", "charge.succeeded"] }, { weird: 1 }] }, sample),
+    ).toBe(false);
+  });
+
+  it("an invalid child poisons `or` (fail-closed)", () => {
+    expect(
+      // @ts-expect-error intentionally invalid child — even with a truthy sibling
+      evaluateFilter({ or: [{ eq: ["$.type", "charge.succeeded"] }, { weird: 1 }] }, sample),
+    ).toBe(false);
+  });
+
+  it("does not forward when `not` wraps an `and` containing an invalid node", () => {
+    expect(
+      // @ts-expect-error intentionally invalid child
+      evaluateFilter({ not: { and: [{ eq: ["$.type", "x"] }, { weird: 1 }] } }, sample),
+    ).toBe(false);
+  });
 });
 
 describe("validateFilterAst", () => {
