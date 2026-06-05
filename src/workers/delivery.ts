@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/nextjs";
 import { Worker, type Job } from "bullmq";
 
 import { scrubSentryEvent } from "../lib/sentry-scrub";
+import { assertProdSecrets } from "../lib/env-check";
 
 // Initialise Sentry early so any import-time errors below are captured.
 // Disabled automatically when SENTRY_DSN is unset (local dev).
@@ -18,6 +19,9 @@ Sentry.init({
   sendDefaultPii: false,
   beforeSend: scrubSentryEvent,
 });
+
+// Fail fast if a placeholder secret slipped into a production deploy.
+assertProdSecrets();
 
 import { prisma } from "../lib/prisma";
 import { decrypt, decryptJson } from "../lib/crypto";

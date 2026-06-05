@@ -3,6 +3,9 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Fail fast if a placeholder secret slipped into a production deploy.
+    const { assertProdSecrets } = await import("./lib/env-check");
+    assertProdSecrets();
     await import("./sentry.server.config");
   }
   if (process.env.NEXT_RUNTIME === "edge") {
