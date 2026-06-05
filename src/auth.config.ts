@@ -14,8 +14,18 @@ export default {
   // forced logout remains a possible follow-up.
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
   callbacks: {
-    authorized({ auth }) {
-      return !!auth?.user;
+    authorized({ auth, request }) {
+      if (auth?.user) return true;
+      // Unauthenticated. The proxy matcher gates both dashboard pages and the
+      // cookie-authed JSON API surface (/api/events/*). Pages should redirect
+      // to /signin (the `false` path below), but an API route must return a
+      // 401 JSON instead of a 302 HTML redirect so cookie-less callers get a
+      // clean API contract rather than a sign-in page. The handlers enforce
+      // auth too — this just fixes which response edge-rejected callers see.
+      if (request.nextUrl.pathname.startsWith("/api/")) {
+        return Response.json({ error: "unauthorized" }, { status: 401 });
+      }
+      return false;
     },
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;

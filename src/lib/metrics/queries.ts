@@ -111,7 +111,10 @@ export async function getSuccessRate(
     Prisma.sql`
       SELECT
         ${trunc} AS bucket,
-        COUNT(*) FILTER (WHERE d.status = 'delivered')::bigint AS delivered,
+        -- Only count *real* deliveries: a filter-skip is recorded as
+        -- delivered with a null responseCode (it never contacted the
+        -- destination), so it must not inflate the success numerator.
+        COUNT(*) FILTER (WHERE d.status = 'delivered' AND d."responseCode" IS NOT NULL)::bigint AS delivered,
         COUNT(*) FILTER (WHERE d.status IN ('failed','exhausted'))::bigint AS failed
       FROM "Delivery" d
       JOIN "Event" e ON e.id = d."eventId"
@@ -181,6 +184,9 @@ export async function getLatency(
         AND e."receivedAt" >= ${start}
         AND d.status = 'delivered'
         AND d."deliveredAt" IS NOT NULL
+        -- Exclude filter-skips (null responseCode): their deliveredAt ≈
+        -- receivedAt would otherwise register as ~0ms and deflate percentiles.
+        AND d."responseCode" IS NOT NULL
         ${sourceFilter}
         ${destFilter}
       GROUP BY 1
@@ -280,7 +286,9 @@ export async function getOverviewTotals(
     prisma.$queryRaw<Array<{ delivered: bigint; failed: bigint }>>(
       Prisma.sql`
         SELECT
-          COUNT(*) FILTER (WHERE d.status = 'delivered')::bigint AS delivered,
+          -- Filter-skips (delivered, null responseCode) never contacted the
+          -- destination — exclude them from the success numerator.
+          COUNT(*) FILTER (WHERE d.status = 'delivered' AND d."responseCode" IS NOT NULL)::bigint AS delivered,
           COUNT(*) FILTER (WHERE d.status IN ('failed','exhausted'))::bigint AS failed
         FROM "Delivery" d
         JOIN "Event" e ON e.id = d."eventId"
@@ -303,6 +311,7 @@ export async function getOverviewTotals(
           AND e."receivedAt" >= ${start}
           AND d.status = 'delivered'
           AND d."deliveredAt" IS NOT NULL
+          AND d."responseCode" IS NOT NULL
       `,
     ),
   ]);

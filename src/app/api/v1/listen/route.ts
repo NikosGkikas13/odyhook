@@ -60,7 +60,39 @@ export const GET = withApiAuth(async (req, auth) => {
         );
       };
 
+      // Live messages that arrive while we're still backfilling are buffered,
+      // not sent, so (a) they aren't interleaved before the older backfill
+      // events and (b) the window between the backfill snapshot and going
+      // live can't silently drop them. Flushed in order once backfill is done.
+      const buffer: LiveEvent[] = [];
+      let buffering = true;
+      sub.on("message", (_chan, msg) => {
+        let evt: LiveEvent;
+        try {
+          evt = JSON.parse(msg) as LiveEvent;
+        } catch {
+          return; // ignore malformed messages
+        }
+        if (buffering) {
+          buffer.push(evt);
+          return;
+        }
+        try {
+          send(evt);
+        } catch {
+          // Controller already closed/cancelled — tear down (symmetric with heartbeat).
+          void cleanup();
+        }
+      });
+
+      // Subscribe BEFORE the backfill query. An event committed during or
+      // after the backfill snapshot is then captured by the subscription
+      // (buffered above) instead of falling into the gap between the snapshot
+      // and a later subscribe, where it would belong to neither set.
+      await sub.subscribe(eventChannel(source.id));
+
       // Backfill anything that arrived while the client was disconnected.
+      const backfilledIds = new Set<string>();
       if (lastEventId) {
         // Scope the marker to the caller's own source. An unscoped findUnique
         // would let any event id act as a timestamp/existence oracle (a global
@@ -82,6 +114,7 @@ export const GET = withApiAuth(async (req, auth) => {
             },
           });
           for (const e of missed) {
+            backfilledIds.add(e.id);
             send({
               id: e.id,
               method: e.method,
@@ -93,21 +126,21 @@ export const GET = withApiAuth(async (req, auth) => {
         }
       }
 
-      await sub.subscribe(eventChannel(source.id));
-      sub.on("message", (_chan, msg) => {
-        let evt: LiveEvent;
-        try {
-          evt = JSON.parse(msg) as LiveEvent;
-        } catch {
-          return; // ignore malformed messages
-        }
+      // Flush events buffered during backfill, skipping any the backfill query
+      // already delivered (an event committed between subscribe and the
+      // snapshot appears in both), then go live. This runs synchronously — no
+      // await — so no live message can interleave before the flush completes.
+      for (const evt of buffer) {
+        if (backfilledIds.has(evt.id)) continue;
         try {
           send(evt);
         } catch {
-          // Controller already closed/cancelled — tear down (symmetric with heartbeat).
           void cleanup();
+          break;
         }
-      });
+      }
+      buffer.length = 0;
+      buffering = false;
 
       heartbeat = setInterval(() => {
         try {

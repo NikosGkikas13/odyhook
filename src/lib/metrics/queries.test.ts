@@ -46,7 +46,15 @@ async function makeDelivery(
   status: DeliveryStatus,
 ) {
   return prisma.delivery.create({
-    data: { eventId, destinationId, status, attemptCount: 1 },
+    data: {
+      eventId,
+      destinationId,
+      status,
+      attemptCount: 1,
+      // A real delivered row always carries the destination's HTTP status;
+      // only filter-skips are delivered with a null responseCode.
+      responseCode: status === "delivered" ? 200 : null,
+    },
   });
 }
 
@@ -176,6 +184,31 @@ describe("getSuccessRate", () => {
     }
   });
 
+  it("excludes filter-skipped deliveries (delivered with no responseCode)", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const recv = new Date(Date.now() - 5 * 60_000);
+      const e1 = await makeEvent(s.id, recv);
+      const e2 = await makeEvent(s.id, recv);
+      // A real delivery (got an HTTP response) and a filter-skip (never sent —
+      // status delivered but responseCode null, marked "[skipped by filter]").
+      await prisma.delivery.create({
+        data: { eventId: e1.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 50) },
+      });
+      await prisma.delivery.create({
+        data: { eventId: e2.id, destinationId: d.id, status: "delivered", responseCode: null, responseBodySnippet: "[skipped by filter]", deliveredAt: new Date(recv.getTime() + 1) },
+      });
+
+      const rows = await getSuccessRate({ userId: u.id, since: "1h" });
+      const totalDelivered = rows.reduce((acc, r) => acc + r.delivered, 0);
+      expect(totalDelivered).toBe(1);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
   it("excludes 'pending' and 'in_flight' deliveries (terminal-status only)", async () => {
     const u = await makeUser();
     try {
@@ -210,9 +243,9 @@ describe("getLatency", () => {
       // percentile_cont interpolates; we just check approximate ordering).
       await prisma.delivery.createMany({
         data: [
-          { eventId: e1.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 100) },
-          { eventId: e2.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 200) },
-          { eventId: e3.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 1000) },
+          { eventId: e1.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 100) },
+          { eventId: e2.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 200) },
+          { eventId: e3.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 1000) },
         ],
       });
 
@@ -235,6 +268,27 @@ describe("getLatency", () => {
       const d = await makeDestination(u.id);
       const e = await makeEvent(s.id, new Date(Date.now() - 5 * 60_000));
       await makeDelivery(e.id, d.id, "failed");
+
+      const rows = await getLatency({ userId: u.id, since: "1h" });
+      const withData = rows.filter((r) => r.p50 !== null);
+      expect(withData).toHaveLength(0);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("excludes filter-skipped deliveries (no responseCode)", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const recv = new Date(Date.now() - 5 * 60_000);
+      const e = await makeEvent(s.id, recv);
+      // Filter-skip: deliveredAt ≈ receivedAt and no responseCode. Would
+      // otherwise register as a ~1ms latency sample and deflate p50/p95.
+      await prisma.delivery.create({
+        data: { eventId: e.id, destinationId: d.id, status: "delivered", responseCode: null, deliveredAt: new Date(recv.getTime() + 1) },
+      });
 
       const rows = await getLatency({ userId: u.id, since: "1h" });
       const withData = rows.filter((r) => r.p50 !== null);
@@ -313,8 +367,8 @@ describe("getOverviewTotals", () => {
 
       await prisma.delivery.createMany({
         data: [
-          { eventId: e1.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 100) },
-          { eventId: e2.id, destinationId: d.id, status: "delivered", deliveredAt: new Date(recv.getTime() + 200) },
+          { eventId: e1.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 100) },
+          { eventId: e2.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 200) },
           { eventId: e3.id, destinationId: d.id, status: "failed" },
         ],
       });
@@ -326,6 +380,36 @@ describe("getOverviewTotals", () => {
       expect(t.successRate).toBeCloseTo(66.67, 1);
       expect(t.p95LatencyMs).toBeGreaterThanOrEqual(100);
       expect(t.p95LatencyMs).toBeLessThanOrEqual(300);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
+  it("ignores filter-skipped deliveries in success rate and latency", async () => {
+    const u = await makeUser();
+    try {
+      const s = await makeSource(u.id);
+      const d = await makeDestination(u.id);
+      const recv = new Date(Date.now() - 5 * 60_000);
+      const e1 = await makeEvent(s.id, recv);
+      const e2 = await makeEvent(s.id, recv);
+      const e3 = await makeEvent(s.id, recv);
+      await prisma.delivery.create({
+        data: { eventId: e1.id, destinationId: d.id, status: "delivered", responseCode: 200, deliveredAt: new Date(recv.getTime() + 150) },
+      });
+      await prisma.delivery.create({
+        data: { eventId: e2.id, destinationId: d.id, status: "failed" },
+      });
+      // Filter-skip — must not count toward delivered nor latency.
+      await prisma.delivery.create({
+        data: { eventId: e3.id, destinationId: d.id, status: "delivered", responseCode: null, deliveredAt: new Date(recv.getTime() + 1) },
+      });
+
+      const t = await getOverviewTotals({ userId: u.id, since: "1h" });
+      // 1 real delivered / (1 delivered + 1 failed) = 50% (skip excluded).
+      expect(t.successRate).toBeCloseTo(50, 1);
+      // p95 reflects only the real ~150ms sample, not the ~1ms skip.
+      expect(t.p95LatencyMs).toBeGreaterThanOrEqual(100);
     } finally {
       await prisma.user.delete({ where: { id: u.id } });
     }
