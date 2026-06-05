@@ -290,4 +290,8 @@ model Delivery {
 
   @@index([eventId])
   @@index([destinationId, status])
+  // Backs the delivery reaper's stalled-row scan (status + age). Leading
+  // `status` also serves the orphaned-in_flight branch, which filters by
+  // updatedAt over the few in_flight rows that status seek selects.
+  @@index([status, createdAt])
 }
