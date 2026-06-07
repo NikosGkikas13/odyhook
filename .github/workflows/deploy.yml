@@ -47,7 +47,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 (LTS): undici@8 (used by safe-fetch's SSRF socket pinning)
+          # requires Node >= 22.19, and Node 20 is EOL. Matches the Dockerfile.
+          node-version: 22
           cache: npm
       - name: Install deps
         run: npm ci

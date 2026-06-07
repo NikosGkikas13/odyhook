@@ -19,8 +19,8 @@ Odyhook is a webhook router with an AI-assisted transformation builder. A produc
 
 | Component | Process / image | Notes |
 | --- | --- | --- |
-| Web server | `npm start` (Next.js 16, Node 20+) | Serves the dashboard, NextAuth routes, and the public `/api/ingest/[slug]` endpoint. Listens on `$PORT` (default 3000). |
-| Delivery worker | `npm run worker:prod` (Node 20+) | Runs [src/workers/delivery.ts](src/workers/delivery.ts). Pulls from the BullMQ queue and delivers events to destinations. **No exposed port.** |
+| Web server | `npm start` (Next.js 16, Node 22+) | Serves the dashboard, NextAuth routes, and the public `/api/ingest/[slug]` endpoint. Listens on `$PORT` (default 3000). |
+| Delivery worker | `npm run worker:prod` (Node 22+) | Runs [src/workers/delivery.ts](src/workers/delivery.ts). Pulls from the BullMQ queue and delivers events to destinations. **No exposed port.** |
 | PostgreSQL 16+ | Managed (Fly Postgres / Neon / Supabase / RDS) | Prisma 7 with `@prisma/adapter-pg`. Schema in [prisma/schema.prisma](prisma/schema.prisma). |
 | Redis 7+ | Managed (Upstash / Fly Redis / ElastiCache) | BullMQ queue + token-bucket rate limiter ([src/lib/ratelimit.ts](src/lib/ratelimit.ts)). TLS (`rediss://`) recommended. |
 | SMTP relay | Managed (SES / Postmark / Resend SMTP / Mailgun) | Magic-link sign-in via Nodemailer ([src/auth.ts](src/auth.ts)). |
@@ -141,11 +141,11 @@ flyctl secrets set \
 
 ### 4.2 `Dockerfile`
 
-Add this at the repo root. It is a standard multi-stage Node 20 build; `postinstall` already runs `prisma generate`.
+Add this at the repo root. It is a standard multi-stage Node 22 build; `postinstall` already runs `prisma generate`.
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM node:20-bookworm-slim AS base
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
