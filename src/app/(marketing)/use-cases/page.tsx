@@ -16,7 +16,7 @@ const CASES = [
     steps: [
       "Create a source (e.g. stripe-prod) and point Stripe at its ingest URL.",
       "ody listen --source stripe-prod --forward http://localhost:3000/webhook",
-      "Every event is stored forever — replay any of them with ody trigger --replay.",
+      "Every event is stored for your configured retention window — replay any of them with ody trigger --replay.",
     ],
   },
   {

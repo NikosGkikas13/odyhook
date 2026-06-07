@@ -52,7 +52,7 @@ export default async function Home() {
             silently fail.
           </h1>
           <p className="landing-lede">
-            Ingest every event. Log it forever. Forward it anywhere. Retry on
+            Ingest every event. Store it durably. Forward it anywhere. Retry on
             failure. Replay with one click.
           </p>
           <div className="landing-cta-row">
@@ -88,7 +88,8 @@ export default async function Home() {
           <h3 className="feature-title">Every event, stored raw</h3>
           <p className="feature-body">
             One ingest URL per source. Body, headers, signature, timestamp —
-            kept in Postgres forever. Replay any event, any time.
+            kept in Postgres for your retention window. Replay any event, any
+            time.
           </p>
         </div>
         <div className="feature">
