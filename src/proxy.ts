@@ -21,5 +21,6 @@ export const config = {
     "/routes/:path*",
     "/settings/:path*",
     "/api/events/:path*",
+    "/api/account/:path*",
   ],
 };
