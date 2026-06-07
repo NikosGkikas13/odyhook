@@ -30,6 +30,11 @@ export default function SignInPage({
           Continue with GitHub, or get a magic link by email.
         </p>
         <SignInForm searchParams={searchParams} />
+        <p className="mt-4 text-xs text-zinc-500">
+          By continuing you agree to our{" "}
+          <a href="/terms" className="underline">Terms</a> and{" "}
+          <a href="/privacy" className="underline">Privacy Policy</a>.
+        </p>
         {process.env.NODE_ENV !== "production" && (
           <p className="mt-6 text-xs text-zinc-500">
             Local dev: check MailHog at{" "}

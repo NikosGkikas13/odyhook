@@ -147,6 +147,8 @@ export default async function Home() {
         <Link href="/use-cases" className="landing-footer-link">Use cases</Link>
         <Link href="/pricing" className="landing-footer-link">Pricing</Link>
         <Link href="/changelog" className="landing-footer-link">Changelog</Link>
+        <Link href="/privacy" className="landing-footer-link">Privacy</Link>
+        <Link href="/terms" className="landing-footer-link">Terms</Link>
         <ThemeToggle />
       </footer>
     </main>
