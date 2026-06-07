@@ -13,6 +13,7 @@
     "worker:prod": "tsx src/workers/delivery.ts",
     "job:drift": "tsx src/scripts/drift.ts",
     "job:digest": "tsx src/scripts/digest.ts",
+    "job:purge": "tsx src/scripts/purge.ts",
     "smoke": "tsx src/scripts/smoke.ts",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

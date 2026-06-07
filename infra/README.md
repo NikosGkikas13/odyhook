@@ -232,10 +232,17 @@ System cron at `/etc/cron.d/odyhook`. Output → `/var/log/odyhook-cron.log`.
 | When (UTC) | Job | Command | What it does |
 |---|---|---|---|
 | Daily 03:00 | DB backup | `/usr/local/bin/odyhook-backup.sh` | `pg_dump` → gzip → R2 |
+| Daily 04:00 | Retention purge | `npm run job:purge` (in web container) | Deletes events older than each source's `retentionDays` window (deliveries cascade). Sources with null retention are kept indefinitely. |
 | Daily 09:00 | Drift check | `npm run job:drift` (in web container) | Detects destinations whose response shape changed; emails the owner |
 | Weekly Mon 09:00 | Activity digest | `npm run job:digest` (in web container) | Emails each user a summary of webhook activity |
 
 `cron` re-reads `/etc/cron.d/` every minute — no daemon restart needed after editing.
+
+**To wire the purge job**, add this line to `/etc/cron.d/odyhook` (UTC):
+
+```cron
+0 4 * * * root cd /opt/hooksmith && docker compose -f docker-compose.prod.yml exec -T web npm run job:purge >> /var/log/odyhook-cron.log 2>&1
+```
 
 ---
 
@@ -345,6 +352,7 @@ rclone ls r2:odyhook-backups | sort -r | head
 # Run cron jobs on demand
 docker compose -f docker-compose.prod.yml exec -T web npm run job:drift
 docker compose -f docker-compose.prod.yml exec -T web npm run job:digest
+docker compose -f docker-compose.prod.yml exec -T web npm run job:purge
 
 # Open a psql shell into the running DB
 docker compose -f docker-compose.prod.yml exec postgres psql -U hooksmith hooksmith

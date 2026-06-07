@@ -42,6 +42,7 @@ export async function exportAccountData(userId: string): Promise<AccountExport> 
         verifyStyle: true,
         rateLimitPerSec: true,
         rateLimitBurst: true,
+        retentionDays: true,
         createdAt: true,
       },
       orderBy: { createdAt: "asc" },

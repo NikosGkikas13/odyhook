@@ -72,6 +72,7 @@
           "hasSigningSecret",
           "rateLimitPerSec",
           "rateLimitBurst",
+          "retentionDays",
           "createdAt"
         ],
         "properties": {
@@ -121,6 +122,13 @@
             ],
             "description": "Burst allowance override. null means the global default applies."
           },
+          "retentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Days events are retained before the daily purge deletes them. null means keep indefinitely."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -156,6 +164,16 @@
             "type": "string",
             "writeOnly": true,
             "description": "Signing secret for HMAC verification. Required when verifyStyle is not none. Never returned in responses."
+          },
+          "retentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 365,
+            "default": 90,
+            "description": "Days events are retained before purge. Defaults to 90; set to null to keep indefinitely."
           }
         }
       },
@@ -198,6 +216,15 @@
             ],
             "minimum": 1,
             "description": "Burst allowance override. Set to null to revert to the global default."
+          },
+          "retentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 365,
+            "description": "Days events are retained before purge. Set to null to keep indefinitely."
           }
         }
       },
