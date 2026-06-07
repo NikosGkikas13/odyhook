@@ -216,9 +216,15 @@ git pull --ff-only origin main
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+### What IS gated before deploy
+
+- **`tsc --noEmit` + the full Vitest suite** run in GitHub Actions (the `test`
+  job in `deploy.yml`) on every push and PR, against ephemeral Postgres + Redis
+  service containers. The `deploy` job has `needs: test`, so a typecheck or test
+  failure blocks the deploy. PRs run the gate without deploying.
+
 ### What is NOT in the deploy pipeline (deliberately, for now)
 
-- **No tests** before deploy. A broken push fails at `npm run build` on the server but isn't caught earlier.
 - **No staging environment.** `main` is production.
 - **No automatic rollback.** A failed deploy leaves old containers running (good default) but you must `git revert` to recover.
 - **No release tagging.** Each deploy is identified only by the git commit hash.
@@ -402,8 +408,8 @@ These are non-obvious choices worth knowing about before "fixing" them:
 
 Call these out before assuming they exist:
 
-- **No staging environment.** Pushes go straight to prod.
-- **No CI tests before deploy.** Failures caught only at server-side build.
+- **No staging environment.** Pushes go straight to prod (but `tsc` + Vitest now
+  gate the deploy in CI — see "What IS gated before deploy" above).
 - **No off-site backup of `.env`.** See [recovery.md](recovery.md#lost-env-file) for the consequences.
 - **No alerting on cron failures.** Backup script could silently fail; nothing pages you.
 - **Security headers** are set in `next.config.ts` (HSTS, X-Frame-Options: DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and a `frame-ancestors`/`base-uri`/`object-src` CSP). A strict `script-src` CSP (needs per-request nonces via middleware) is still **not** set.
