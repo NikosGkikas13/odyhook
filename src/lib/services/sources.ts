@@ -9,11 +9,25 @@ import type { Page } from "@/lib/api/respond";
 
 const VERIFY_STYLES = ["none", "stripe", "github", "generic-sha256"] as const;
 
+// New sources keep events for 90 days by default; the purge job enforces it.
+// Null retention means keep indefinitely. Capped at 365 to bound disk + the
+// GDPR storage-limitation exposure.
+export const DEFAULT_RETENTION_DAYS = 90;
+export const MAX_RETENTION_DAYS = 365;
+
+const retentionSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(MAX_RETENTION_DAYS)
+  .nullable();
+
 export const sourceCreateSchema = z
   .object({
     name: z.string().min(1).max(100),
     verifyStyle: z.enum(VERIFY_STYLES).default("none"),
     signingSecret: z.string().optional(),
+    retentionDays: retentionSchema.default(DEFAULT_RETENTION_DAYS),
   })
   .refine(
     (v) => v.verifyStyle === "none" || (v.signingSecret?.trim().length ?? 0) > 0,
@@ -27,6 +41,7 @@ export const sourceUpdateSchema = z
     signingSecret: z.string().optional(),
     rateLimitPerSec: z.number().int().positive().nullable().optional(),
     rateLimitBurst: z.number().int().positive().nullable().optional(),
+    retentionDays: retentionSchema.optional(),
   });
 
 export type SourceInput = z.input<typeof sourceCreateSchema>;
@@ -40,6 +55,7 @@ export type SourceDTO = {
   hasSigningSecret: boolean;
   rateLimitPerSec: number | null;
   rateLimitBurst: number | null;
+  retentionDays: number | null;
   createdAt: string;
 };
 
@@ -51,6 +67,7 @@ type SourceRow = {
   signingSecret: string | null;
   rateLimitPerSec: number | null;
   rateLimitBurst: number | null;
+  retentionDays: number | null;
   createdAt: Date;
 };
 
@@ -63,6 +80,7 @@ function toDTO(s: SourceRow): SourceDTO {
     hasSigningSecret: s.signingSecret != null,
     rateLimitPerSec: s.rateLimitPerSec,
     rateLimitBurst: s.rateLimitBurst,
+    retentionDays: s.retentionDays,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -88,6 +106,7 @@ export async function createSource(userId: string, input: SourceInput): Promise<
         parsed.verifyStyle !== "none" && parsed.signingSecret
           ? encrypt(parsed.signingSecret)
           : null,
+      retentionDays: parsed.retentionDays,
     },
   });
   return toDTO(created);
@@ -125,6 +144,7 @@ export async function updateSource(
   if (parsed.name !== undefined) data.name = parsed.name;
   if (parsed.rateLimitPerSec !== undefined) data.rateLimitPerSec = parsed.rateLimitPerSec;
   if (parsed.rateLimitBurst !== undefined) data.rateLimitBurst = parsed.rateLimitBurst;
+  if (parsed.retentionDays !== undefined) data.retentionDays = parsed.retentionDays;
   if (parsed.verifyStyle !== undefined) {
     if (parsed.verifyStyle === "none") {
       data.verifyStyle = null;

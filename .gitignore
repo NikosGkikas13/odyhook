@@ -44,8 +44,12 @@ next-env.d.ts
 
 # local-only notes and tool state
 .claude/
+.codegraph/
 issues.md
 monetize.md
+BUG_AUDIT_FINDINGS.md
+BUSINESS.md
+TRUST_AND_COMPLIANCE_GAPS.md
 # Security audit kept local: the repo is public and the doc enumerates
 # still-open findings with attack steps + file:line. Don't publish.
 SECURITY_AUDIT.md

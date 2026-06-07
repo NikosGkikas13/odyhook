@@ -18,6 +18,8 @@ import { SuccessRateChart } from "@/components/metrics/success-rate-chart";
 import { ThroughputChart } from "@/components/metrics/throughput-chart";
 import { TimeWindowSelector } from "@/components/metrics/time-window-selector";
 import { TopFailingTable } from "@/components/metrics/top-failing-table";
+import { updateSourceRetention } from "@/lib/actions/sources";
+import { MAX_RETENTION_DAYS } from "@/lib/services/sources";
 
 export const revalidate = 60;
 
@@ -42,7 +44,7 @@ export default async function SourceDetailPage({
 
   const source = await prisma.source.findFirst({
     where: { id, userId },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, retentionDays: true },
   });
   if (!source) notFound();
 
@@ -82,6 +84,39 @@ export default async function SourceDetailPage({
           <TopFailingTable rows={topFailing} />
         </ChartCard>
       </div>
+
+      <section className="max-w-xl rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
+        <h2 className="text-sm font-medium">Data retention</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          {source.retentionDays == null
+            ? "Events on this source are kept indefinitely."
+            : `Events on this source are deleted after ${source.retentionDays} day${source.retentionDays === 1 ? "" : "s"}.`}{" "}
+          A daily job purges anything older than the window.
+        </p>
+        <form action={updateSourceRetention} className="mt-4 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="id" value={source.id} />
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-zinc-600 dark:text-zinc-400">
+              Retention (days, 1&ndash;{MAX_RETENTION_DAYS}; blank = indefinite)
+            </span>
+            <input
+              name="retentionDays"
+              type="number"
+              min={1}
+              max={MAX_RETENTION_DAYS}
+              defaultValue={source.retentionDays ?? ""}
+              placeholder="indefinite"
+              className="h-9 w-40 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </label>
+          <button
+            type="submit"
+            className="btn-primary-ody inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
+          >
+            Save
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

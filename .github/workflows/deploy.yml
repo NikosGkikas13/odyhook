@@ -1,19 +1,76 @@
-name: Deploy to production
+name: CI & Deploy
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch: {}
 
-# Serialize deploys: never run two at once.
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
-  deploy:
+  # Gate: typecheck + the full Vitest suite must pass before we deploy.
+  # Runs on every push and PR. The suite is integration-style (hits Postgres
+  # via Prisma and Redis via BullMQ), so we stand both up as service containers.
+  test:
+    name: tsc + vitest
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hooksmith
+          POSTGRES_PASSWORD: hooksmith
+          POSTGRES_DB: hooksmith
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hooksmith"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://hooksmith:hooksmith@localhost:5432/hooksmith
+      REDIS_URL: redis://localhost:6379
+      # Throwaway key (base64 of 32 random bytes). Only ever encrypts ephemeral
+      # CI test rows — NOT a production secret.
+      ENCRYPTION_KEY: rzVxtrE/Q6AuOQGXtz1fNStJELTbY6CTMu4gSQu5JmE=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22 (LTS): undici@8 (used by safe-fetch's SSRF socket pinning)
+          # requires Node >= 22.19, and Node 20 is EOL. Matches the Dockerfile.
+          node-version: 22
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Test
+        run: npm run test
+
+  deploy:
+    name: Deploy to production
+    needs: test
+    # Never deploy from a PR — only pushes to main (and manual dispatch).
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Serialize deploys: never run two at once.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - name: Configure SSH
         env:

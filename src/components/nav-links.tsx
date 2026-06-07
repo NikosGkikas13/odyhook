@@ -12,6 +12,7 @@ const NAV = [
   { href: "/settings/api-keys", label: "Settings" },
   { href: "/settings/alerts", label: "Alerts" },
   { href: "/settings/api-tokens", label: "API Tokens" },
+  { href: "/settings/account", label: "Account" },
 ];
 
 export function NavLinks() {

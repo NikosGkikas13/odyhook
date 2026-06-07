@@ -27,6 +27,8 @@ export default function MarketingLayout({
           <span className="landing-footer-sep">·</span>
           <span>Webhooks that don&rsquo;t silently fail.</span>
           <span className="landing-footer-spacer" />
+          <Link href="/privacy" className="landing-footer-link">Privacy</Link>
+          <Link href="/terms" className="landing-footer-link">Terms</Link>
           <ThemeToggle />
         </footer>
       </div>

@@ -113,6 +113,11 @@ model Source {
   // `rateLimitBurst`  is the bucket capacity (max instantaneous burst).
   rateLimitPerSec Int?
   rateLimitBurst  Int?
+  // Data-retention window in days. The purge job (src/scripts/purge.ts) deletes
+  // events (and, by cascade, their deliveries) older than this many days.
+  // Null = keep indefinitely. New sources default to 90 at the service layer;
+  // pre-existing rows stay null so this change doesn't retroactively purge data.
+  retentionDays Int?
   createdAt     DateTime @default(now())
 
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
