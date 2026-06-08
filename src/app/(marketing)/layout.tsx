@@ -4,7 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-// Shared chrome for the public content surfaces (/docs, /use-cases, /pricing,
+// Shared chrome for the public content surfaces (/docs, /use-cases,
 // /changelog). The landing page lives outside this group so it keeps its
 // bespoke full-bleed layout. These routes are public — proxy.ts gates only the
 // dashboard, so no auth wiring is needed here. The only auth-dependent bit is

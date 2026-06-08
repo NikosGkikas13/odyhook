@@ -307,7 +307,12 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | **Caddy / TLS status** | `docker compose logs caddy` (cert renewals appear here) |
 | **R2 backup inventory** | `rclone ls r2:odyhook-backups | sort -r | head` |
 
-**Known gap:** there's no alerting on cron exit codes. Sentry catches exceptions in running code but doesn't fire if the nightly backup script silently fails three nights in a row. Mitigation idea (not implemented): hit a [healthchecks.io](https://healthchecks.io) URL from the backup script on success — they ping you when no pings arrive on schedule.
+**Known gap:** there's no alerting on cron exit codes. Sentry catches exceptions in running code but doesn't fire if the nightly backup script silently fails three nights in a row. Two ways to close it, depending on the failure you care about:
+
+- **Push on failure** — have the script POST to an incoming webhook (Slack, Discord, or any HTTP endpoint) when a step fails. Simplest, and you probably already have a Slack workspace. Caveat: a script-fired alert can't fire if the cron job *never runs at all* (cron broken, container down).
+- **Dead-man's-switch** — ping a heartbeat URL (e.g. [healthchecks.io](https://healthchecks.io)) on *success*; it alerts you when an expected ping doesn't arrive. This is the one that catches the "the script never ran" case the push approach misses.
+
+A Slack incoming webhook covers the common "the backup failed" case in a few lines; add a heartbeat too if you want the "it never ran" case covered as well.
 
 ---
 

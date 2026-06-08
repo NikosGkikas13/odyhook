@@ -1,4 +1,4 @@
-// Competitor comparison data for /vs/hookdeck and /vs/svix.
+// Competitor comparison data for /vs/hookdeck.
 // All claims verified as of June 2026 against the linked sources. Tone: factual,
 // non-smug, competitor strengths stated plainly. When competitor facts change,
 // update the cells, the prose, and the `asOf` stamp together.
@@ -137,112 +137,7 @@ const hookdeck: Comparison = {
   ],
 };
 
-const svix: Comparison = {
-  slug: "svix",
-  competitor: "Svix",
-  asOf: "June 2026",
-  positioning:
-    "Svix is an open-source (MIT) webhooks service focused on sending webhooks — it helps a SaaS deliver events to its own customers, with an embeddable customer-facing portal as its flagship. Odyhook solves the other side: receiving webhooks from providers and routing them to your destinations, self-hosted, with BYOK AI. Both can be self-hosted, but they target different jobs. If you're building a product that sends webhooks to your users, Svix is purpose-built for that; if you're routing inbound webhooks for yourself, Odyhook fits better.",
-  features: [
-    {
-      capability: "Self-hosted",
-      odyhook: yes("You run it on your own server."),
-      competitor: yes("MIT server self-hostable; portal UI is SaaS-only."),
-    },
-    {
-      capability: "Open source",
-      odyhook: yes(),
-      competitor: yes("MIT-licensed server."),
-    },
-    {
-      capability: "Pricing model (SaaS)",
-      odyhook: yes("Flat ~€6/mo: your server + BYOK."),
-      competitor: no("Free → $490/mo → custom, per attempted message."),
-    },
-    {
-      capability: "Primary direction",
-      odyhook: yes("Receive & route inbound webhooks."),
-      competitor: partial("Built to send webhooks to your users."),
-    },
-    {
-      capability: "Inbound signature verification",
-      odyhook: yes("Stripe, GitHub, generic SHA-256."),
-      competitor: partial("Verification is on the consumer side of its sending model."),
-    },
-    {
-      capability: "Outbound HMAC signing",
-      odyhook: yes(),
-      competitor: yes("Signs outgoing messages."),
-    },
-    {
-      capability: "Retries with backoff",
-      odyhook: yes("10s → 30s → 2m → 10m → 1h → 6h."),
-      competitor: yes(),
-    },
-    {
-      capability: "Filtering",
-      odyhook: yes("JSONPath + AI-compiled filters."),
-      competitor: yes("Event-type filtering."),
-    },
-    {
-      capability: "Transformations",
-      odyhook: yes("Sandboxed JS (QuickJS)."),
-      competitor: yes("Transformations."),
-    },
-    {
-      capability: "Replay",
-      odyhook: yes("Single + bulk replay."),
-      competitor: yes("Recover/replay failed messages."),
-    },
-    {
-      capability: "Embeddable customer portal",
-      odyhook: no("Not a sender product; no end-user portal."),
-      competitor: yes("Flagship embeddable app portal (SaaS)."),
-    },
-    {
-      capability: "Local-dev forwarding (CLI)",
-      odyhook: yes("ody listen streams events to localhost."),
-      competitor: partial("Svix Play test inbox; no localhost-forwarding CLI."),
-    },
-    {
-      capability: "MCP / AI-agent tools",
-      odyhook: yes("Stateless MCP server over the API."),
-      competitor: no(),
-    },
-    {
-      capability: "BYOK AI (filters, diagnosis, NL search, diffs)",
-      odyhook: yes("Bring your own Anthropic key."),
-      competitor: no(),
-    },
-    {
-      capability: "Enterprise compliance (SOC 2 / SSO / SLA)",
-      odyhook: no("Solo self-hosted; no compliance program."),
-      competitor: yes("SOC 2 Type II, SSO, on-prem, 99.99–99.999% SLAs."),
-    },
-  ],
-  competitorStrengths: [
-    "Purpose-built for sending webhooks to your own users, with an embeddable portal.",
-    "Mature, MIT-licensed Rust server with a well-documented API and SDKs.",
-    "Enterprise tier: SOC 2 Type II, SSO, on-prem, audit logs, high SLAs.",
-    "Generous free SaaS tier (50k attempted messages/mo).",
-  ],
-  pickOdyhookIf: [
-    "You're receiving and routing inbound webhooks rather than sending them to customers.",
-    "You want a flat self-hosted bill and BYOK AI tooling.",
-    "You want one box to ingest, verify, filter, transform, and forward.",
-  ],
-  pickCompetitorIf: [
-    "You're a SaaS that needs to send webhooks to your customers.",
-    "You want an embeddable, white-label customer portal.",
-    "You need enterprise compliance (SOC 2, SSO, on-prem, high SLAs).",
-  ],
-  sources: [
-    { label: "Svix pricing", url: "https://www.svix.com/pricing/" },
-    { label: "Svix open-source server", url: "https://github.com/svix/svix-webhooks" },
-  ],
-};
-
-export const COMPARISONS: Comparison[] = [hookdeck, svix];
+export const COMPARISONS: Comparison[] = [hookdeck];
 
 export function getComparison(slug: string): Comparison | undefined {
   return COMPARISONS.find((c) => c.slug === slug);

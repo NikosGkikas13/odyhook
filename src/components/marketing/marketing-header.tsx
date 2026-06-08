@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react";
 const NAV = [
   { href: "/docs", label: "Docs" },
   { href: "/use-cases", label: "Use cases" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/changelog", label: "Changelog" },
 ];
 
