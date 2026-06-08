@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { withApiAuth, readJson, apiError } from "@/lib/api/handler";
-import { NoUserApiKeyError } from "@/lib/anthropic";
+import { NoLlmKeyError } from "@/lib/llm";
 import { searchEvents } from "@/lib/services/search";
 import { SearchCompileError } from "@/lib/ai/search-compiler";
 
@@ -37,8 +37,8 @@ export const POST = withApiAuth(async (req, auth) => {
   } catch (err) {
     // BYOK-missing and uninterpretable queries are user-facing 400s. Anything
     // else (Anthropic network/SDK errors) rethrows → 500 via withApiAuth.
-    if (err instanceof NoUserApiKeyError) {
-      return apiError("validation_error", "No Anthropic API key configured (set one in Settings → API Keys).");
+    if (err instanceof NoLlmKeyError) {
+      return apiError("validation_error", "No AI provider configured (add a key in Settings → API Keys).");
     }
     if (err instanceof SearchCompileError) {
       return apiError("validation_error", "Could not interpret the search query. Try rephrasing.");

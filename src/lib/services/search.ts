@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { anthropicFor } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import { compileSearchQuery } from "@/lib/ai/search-compiler";
 import { runEventSearch, type RunSearchResult } from "@/lib/search/run";
 import type { EventQuery, SourceRef } from "@/lib/search/types";
@@ -30,18 +30,18 @@ export async function loadSearchContext(userId: string): Promise<SearchContext> 
 export type CompileOpts = { now?: Date; timeZone?: string };
 
 /** Compile an NL prompt into a validated EventQuery using the user's BYOK key.
- *  Throws NoUserApiKeyError if unset, SearchCompileError on bad model output. */
+ *  Throws NoLlmKeyError if unset, SearchCompileError on bad model output. */
 export async function compileSearchForUser(
   userId: string,
   prompt: string,
   opts: CompileOpts = {},
 ): Promise<{ query: EventQuery; summary: string[] }> {
-  const [anthropic, ctx] = await Promise.all([
-    anthropicFor(userId),
+  const [llm, ctx] = await Promise.all([
+    llmFor(userId),
     loadSearchContext(userId),
   ]);
   return compileSearchQuery({
-    anthropic,
+    llm,
     prompt,
     sources: ctx.sources,
     sampleBodies: ctx.sampleBodies,

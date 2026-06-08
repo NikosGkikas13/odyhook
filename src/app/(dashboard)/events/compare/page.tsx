@@ -38,9 +38,9 @@ export default async function CompareEventsPage({
   const older = e0.id === olderId ? e0 : e1;
   const newer = e0.id === newerId ? e0 : e1;
 
-  const hasApiKey = !!(await prisma.userApiKey.findUnique({
+  const hasApiKey = !!(await prisma.providerKey.findFirst({
     where: { userId: session.user.id },
-    select: { userId: true },
+    select: { provider: true },
   }));
 
   const cached = await prisma.aiEventDiff.findUnique({

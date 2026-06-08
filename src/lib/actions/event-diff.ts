@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { anthropicFor } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import {
   explainEventDiff,
   canonicalPair,
@@ -57,9 +57,9 @@ export async function explainEventDiffAction(
     };
   }
 
-  const anthropic = await anthropicFor(userId);
+  const llm = await llmFor(userId);
   const result: DiffResult = await explainEventDiff({
-    anthropic,
+    llm,
     bodyA: older.bodyRaw,
     bodyB: newer.bodyRaw,
   });

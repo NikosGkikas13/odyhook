@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import Anthropic from "@anthropic-ai/sdk";
 
 import { withApiAuth, readJson, apiError } from "@/lib/api/handler";
 import { prisma } from "@/lib/prisma";
-import { getUserApiKey } from "@/lib/anthropic";
+import { llmFor, NoLlmKeyError } from "@/lib/llm";
 import { generateFixture, FixtureGenerationError } from "@/lib/ai/fixtures";
 
 export const runtime = "nodejs";
@@ -23,12 +22,14 @@ export const POST = withApiAuth(async (req, auth) => {
   });
   if (!src) return apiError("not_found", "source not found");
 
-  const apiKey = await getUserApiKey(auth.userId);
-  if (!apiKey) {
-    return apiError(
-      "validation_error",
-      "No Anthropic API key configured (set one in Settings → API Keys).",
-    );
+  let llm;
+  try {
+    llm = await llmFor(auth.userId);
+  } catch (err) {
+    if (err instanceof NoLlmKeyError) {
+      return apiError("validation_error", err.message);
+    }
+    throw err;
   }
 
   const samples = await prisma.event.findMany({
@@ -40,7 +41,7 @@ export const POST = withApiAuth(async (req, auth) => {
 
   try {
     const result = await generateFixture({
-      anthropic: new Anthropic({ apiKey }),
+      llm,
       prompt,
       sampleBodies: samples.map((s) => s.bodyRaw),
       verifyStyle: src.verifyStyle,

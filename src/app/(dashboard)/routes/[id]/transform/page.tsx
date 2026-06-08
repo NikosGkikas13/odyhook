@@ -28,9 +28,9 @@ export default async function RouteTransformPage({
 
   if (!route) notFound();
 
-  const hasApiKey = !!(await prisma.userApiKey.findUnique({
+  const hasApiKey = !!(await prisma.providerKey.findFirst({
     where: { userId: session.user.id },
-    select: { userId: true },
+    select: { provider: true },
   }));
 
   return (

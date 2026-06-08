@@ -27,9 +27,9 @@ export default async function RouteFilterPage({
 
   if (!route) notFound();
 
-  const hasApiKey = !!(await prisma.userApiKey.findUnique({
+  const hasApiKey = !!(await prisma.providerKey.findFirst({
     where: { userId: session.user.id },
-    select: { userId: true },
+    select: { provider: true },
   }));
 
   const initialAstJson = route.filterAst

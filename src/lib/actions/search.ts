@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { NoUserApiKeyError } from "@/lib/anthropic";
+import { NoLlmKeyError } from "@/lib/llm";
 import { compileSearchForUser } from "@/lib/services/search";
 import { SearchCompileError } from "@/lib/ai/search-compiler";
 import type { EventQuery } from "@/lib/search/types";
@@ -26,8 +26,8 @@ export async function previewSearch(prompt: string, timeZone: string): Promise<P
     const { query, summary } = await compileSearchForUser(userId, trimmed, { timeZone });
     return { ok: true, query, summary };
   } catch (e) {
-    if (e instanceof NoUserApiKeyError) {
-      return { ok: false, error: "No Anthropic API key configured. Set one in Settings → API Keys." };
+    if (e instanceof NoLlmKeyError) {
+      return { ok: false, error: "No AI provider configured. Add a key in Settings → API Keys." };
     }
     if (e instanceof SearchCompileError) {
       return { ok: false, error: "Couldn't interpret that search. Try rephrasing." };
