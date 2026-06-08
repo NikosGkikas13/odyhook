@@ -1,19 +1,18 @@
 import { describe, it, expect } from "vitest";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { LlmClient } from "@/lib/llm";
 import { explainEventDiff, canonicalPair, EventDiffError } from "./event-diff";
 
-/** A fake Anthropic client whose messages.create returns a fixed text block
- *  and records the last request so tests can assert what was sent. */
+/** A fake LlmClient whose complete returns a fixed text block and records calls
+ *  so tests can assert what was sent. */
 function fakeClient(text: string) {
-  const calls: Array<{ system?: unknown; messages: unknown }> = [];
-  const client = {
-    messages: {
-      create: async (args: { system?: unknown; messages: unknown }) => {
-        calls.push({ system: args.system, messages: args.messages });
-        return { model: "model-from-api", content: [{ type: "text", text }] };
-      },
+  const calls: Array<{ system: string; messages: unknown }> = [];
+  const client: LlmClient = {
+    provider: "anthropic",
+    complete: async (args) => {
+      calls.push({ system: args.system, messages: args.messages });
+      return { text, model: "model-from-api" };
     },
-  } as unknown as Anthropic;
+  };
   return { client, calls };
 }
 
@@ -29,7 +28,7 @@ describe("explainEventDiff", () => {
   it("returns the parsed summary, changes, and model", async () => {
     const { client } = fakeClient(VALID);
     const res = await explainEventDiff({
-      anthropic: client,
+      llm: client,
       bodyA: '{"amount":500}',
       bodyB: '{"amount":1200,"metadata":{"coupon":"SAVE20"}}',
     });
@@ -47,7 +46,7 @@ describe("explainEventDiff", () => {
   it("parses fenced JSON output", async () => {
     const { client } = fakeClient("```json\n" + VALID + "\n```");
     const res = await explainEventDiff({
-      anthropic: client,
+      llm: client,
       bodyA: "{}",
       bodyB: "{}",
     });
@@ -57,14 +56,14 @@ describe("explainEventDiff", () => {
   it("throws EventDiffError on non-JSON output", async () => {
     const { client } = fakeClient("sorry, I can't compare these");
     await expect(
-      explainEventDiff({ anthropic: client, bodyA: "{}", bodyB: "{}" }),
+      explainEventDiff({ llm: client, bodyA: "{}", bodyB: "{}" }),
     ).rejects.toThrow(EventDiffError);
   });
 
   it("caps each body to MAX_BODY_CHARS before sending", async () => {
     const huge = '{"x":"' + "a".repeat(20000) + '"}';
     const { client, calls } = fakeClient(VALID);
-    await explainEventDiff({ anthropic: client, bodyA: huge, bodyB: huge });
+    await explainEventDiff({ llm: client, bodyA: huge, bodyB: huge });
     const sent = JSON.stringify(calls[0].messages);
     // Neither embedded body should carry the full 20k payload.
     expect(sent.length).toBeLessThan(20000);
@@ -73,7 +72,7 @@ describe("explainEventDiff", () => {
   it("throws EventDiffError when model returns the literal null", async () => {
     const { client } = fakeClient("null");
     await expect(
-      explainEventDiff({ anthropic: client, bodyA: "{}", bodyB: "{}" }),
+      explainEventDiff({ llm: client, bodyA: "{}", bodyB: "{}" }),
     ).rejects.toThrow(EventDiffError);
   });
 
@@ -82,7 +81,7 @@ describe("explainEventDiff", () => {
       '{"summary":"x","changes":[null,{"path":"$.a","kind":"added","to":"1"}]}',
     );
     const res = await explainEventDiff({
-      anthropic: client,
+      llm: client,
       bodyA: "{}",
       bodyB: '{"a":"1"}',
     });

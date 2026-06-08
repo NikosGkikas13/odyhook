@@ -1,6 +1,4 @@
-import type Anthropic from "@anthropic-ai/sdk";
-
-import { MODEL_DEFAULT } from "./models";
+import type { LlmClient } from "@/lib/llm";
 import { extractJsonText } from "./json";
 import { validateEventQuery, type EventQuery, type SourceRef } from "@/lib/search/types";
 import { describeEventQuery } from "@/lib/search/describe";
@@ -46,7 +44,7 @@ Rules:
 - The payload root must be a single node (commonly an "and").`;
 
 export type CompileSearchArgs = {
-  anthropic: Anthropic;
+  llm: LlmClient;
   prompt: string;
   sources: SourceRef[];
   sampleBodies: string[];
@@ -77,21 +75,16 @@ export async function compileSearchQuery(
     `Return ONLY the JSON object.`,
   ].join("\n");
 
-  const response = await args.anthropic.messages.create({
-    model: MODEL_DEFAULT,
-    max_tokens: 1024,
+  const { text } = await args.llm.complete({
+    tier: "standard",
+    maxTokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new SearchCompileError("could not interpret the search: no text returned");
-  }
-
   let parsed: unknown;
   try {
-    parsed = JSON.parse(extractJsonText(textBlock.text));
+    parsed = JSON.parse(extractJsonText(text));
   } catch {
     throw new SearchCompileError("could not interpret the search: model did not return JSON");
   }
