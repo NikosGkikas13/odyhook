@@ -71,7 +71,7 @@ Notable endpoints beyond the ingest path:
 | HMAC | Node `crypto` (built-in) | n/a |
 | Encryption at rest | AES-256-GCM (Node `crypto`) | n/a |
 | Transformation sandbox | QuickJS via `quickjs-emscripten` (WASM) | `0.32.x` |
-| AI | Anthropic Claude (BYOK) | `@anthropic-ai/sdk` `0.87.x` |
+| AI | Multi-provider BYOK (Anthropic / OpenAI / Google / OpenRouter) | `@anthropic-ai/sdk` `0.87.x`, `openai` `6.x`, `@google/genai` `2.x` |
 | TLS / reverse proxy | Caddy 2 | `2-alpine` (Docker) |
 | Container runtime | Docker | host-installed via `get.docker.com` |
 | Orchestration | Docker Compose v2 | `docker compose` (no hyphen) |
