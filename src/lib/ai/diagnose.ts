@@ -1,4 +1,4 @@
-import { anthropicFor, MODEL_DEFAULT } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 
 // Diagnose a single failed webhook delivery. The model is given a redacted
 // view of the failure (URL host only, status, response snippet, content-type
@@ -45,7 +45,7 @@ export async function diagnoseDelivery(
   userId: string,
   input: DiagnosisInput,
 ): Promise<DiagnosisResult> {
-  const anthropic = await anthropicFor(userId);
+  const llm = await llmFor(userId);
 
   const userMessage = [
     `Destination host: ${input.destinationHost}`,
@@ -73,23 +73,18 @@ export async function diagnoseDelivery(
     .filter(Boolean)
     .join("\n");
 
-  const response = await anthropic.messages.create({
-    model: MODEL_DEFAULT,
-    max_tokens: 800,
+  const { text, model } = await llm.complete({
+    tier: "standard",
+    maxTokens: 800,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude returned no text content");
-  }
-  const raw = textBlock.text.trim();
+  const raw = text.trim();
   const [summaryRaw, ...rest] = raw.split(/^---$/m);
   const summary = (summaryRaw ?? "").trim() || "No summary returned";
   const detail = rest.join("---").trim() || raw;
 
-  return { summary, detail, modelUsed: MODEL_DEFAULT };
+  return { summary, detail, modelUsed: model };
 }
 
 /**

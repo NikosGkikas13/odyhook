@@ -22,25 +22,32 @@ model User {
   // Account-wide alert defaults. Nullable = no defaults configured.
   // Per-destination overrides on Destination.alertConfigJson shallow-merge
   // on top of this. See src/lib/alerts/schema.ts for the shape.
-  alertConfigJson Json?
+  alertConfigJson  Json?
+  // Which AI provider the user's features run against. Null = none configured.
+  activeAiProvider String?
 
   accounts     Account[]
   sessions     Session[]
   sources      Source[]
   destinations Destination[]
-  apiKey       UserApiKey?
+  providerKeys ProviderKey[]
   apiTokens    ApiToken[]
 }
 
-// Bring-your-own-key: each user stores their own Anthropic API key so their
-// Claude usage is billed to them, not the platform.
-model UserApiKey {
-  userId          String   @id
-  anthropicKeyEnc String // encrypted with ENCRYPTION_KEY
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+// Bring-your-own-key: a user may store one key per LLM provider and switch the
+// active one (User.activeAiProvider) without re-pasting. Keys are encrypted at
+// rest with ENCRYPTION_KEY. `model` is set only for OpenRouter (user-chosen).
+model ProviderKey {
+  userId    String
+  provider  String // "anthropic" | "openai" | "google" | "openrouter"
+  keyEnc    String // encrypted with ENCRYPTION_KEY
+  model     String? // OpenRouter only
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, provider])
 }
 
 // Programmatic access tokens for the public REST API (/api/v1). Distinct from

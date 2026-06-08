@@ -62,9 +62,9 @@ export default async function EventDetailPage({
 
   if (!event) notFound();
 
-  const hasApiKey = !!(await prisma.userApiKey.findUnique({
+  const hasApiKey = !!(await prisma.providerKey.findFirst({
     where: { userId: session.user.id },
-    select: { userId: true },
+    select: { provider: true },
   }));
 
   const headers = event.headersJson as Record<string, string>;

@@ -48,4 +48,4 @@ ody trigger gh-prod --generate "a GitHub pull_request opened event"
 ody trigger gh-prod --data @payload.json --dry-run
 ```
 
-`--dry-run` prints what would be sent without delivering it. `--generate` uses your own Anthropic key (see AI features) and produces a payload grounded on recent events for the source; the CLI then delivers it through the normal ingest path.
+`--dry-run` prints what would be sent without delivering it. `--generate` uses your configured LLM provider key (Anthropic, OpenAI, Google, or OpenRouter — see AI features) and produces a payload grounded on recent events for the source; the CLI then delivers it through the normal ingest path.

@@ -5,7 +5,7 @@ export const metadata = {
 
 # MCP server
 
-Odyhook ships a Model Context Protocol (MCP) server so coding agents like Claude Code can inspect and operate your webhook setup directly.
+Odyhook ships a Model Context Protocol (MCP) server so MCP-compatible agents — Claude Code, Cursor, Claude Desktop, and others — can inspect and operate your webhook setup directly.
 
 ## What it is
 
@@ -38,7 +38,7 @@ Safe-write tools:
 - `set_route_filter`
 - `clear_route_filter`
 
-BYOK tools (require your own Anthropic key):
+BYOK tools (require your own LLM provider key):
 
 - `compile_filter` — compile a plain-English routing rule into a filter AST (preview only; does not persist).
 - `search_events` — natural-language event search across metadata and payload content.
@@ -47,7 +47,7 @@ BYOK tools (require your own Anthropic key):
 There are no delete tools by design. The MCP surface is read plus safe writes only — an agent can create, update, pause, and resume, but never destroy data.
 </Callout>
 
-## Connecting from Claude Code
+## Connecting an MCP client
 
 Point any MCP client at the endpoint URL and supply your `ody_` token as the bearer credential:
 

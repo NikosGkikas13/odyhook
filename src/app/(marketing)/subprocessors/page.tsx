@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 // Last updated — bump whenever a provider is added or removed.
-const UPDATED = "7 June 2026";
+const UPDATED = "8 June 2026";
 
 const SUBPROCESSORS = [
   {
@@ -37,11 +37,11 @@ const SUBPROCESSORS = [
     location: "Germany (EU)",
   },
   {
-    name: "Anthropic, PBC",
-    role: "AI features (filter/transform compilation, failure diagnosis, NL search) — only when you use them",
+    name: "Your chosen AI provider (Anthropic, OpenAI, Google, or OpenRouter)",
+    role: "AI features (filter/transform compilation, failure diagnosis, NL search, event diffs, fixtures) — only when you use them",
     data:
-      "Event payloads you submit to an AI feature, sent using your own (bring-your-own) Anthropic key.",
-    location: "USA",
+      "Event payloads you submit to an AI feature, sent using your own (bring-your-own) key for the provider you configured. Keys are billed to you directly; Odyhook holds no central AI key.",
+    location: "Varies by provider (USA for all four options)",
   },
   {
     name: "GitHub, Inc.",

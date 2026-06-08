@@ -1,7 +1,5 @@
-import type Anthropic from "@anthropic-ai/sdk";
-
+import type { LlmClient } from "@/lib/llm";
 import { extractJsonText } from "./json";
-import { MODEL_CHEAP } from "./models";
 
 /** Thrown when the model's output can't be used as a diff (a user-facing,
  *  not infrastructure, failure). The action maps this to an inline error. */
@@ -54,7 +52,7 @@ function prepBody(raw: string): string {
 }
 
 export type ExplainEventDiffOpts = {
-  anthropic: Anthropic;
+  llm: LlmClient;
   /** Older payload (raw request body as text). */
   bodyA: string;
   /** Newer payload (raw request body as text). */
@@ -74,7 +72,7 @@ export type ExplainEventDiffOpts = {
 export async function explainEventDiff(
   opts: ExplainEventDiffOpts,
 ): Promise<DiffResult> {
-  const { anthropic, bodyA, bodyB } = opts;
+  const { llm, bodyA, bodyB } = opts;
 
   const content = [
     "Payload A (older):",
@@ -90,19 +88,14 @@ export async function explainEventDiff(
     "Output ONLY the JSON object describing what changed from A to B.",
   ].join("\n");
 
-  const response = await anthropic.messages.create({
-    model: MODEL_CHEAP,
-    max_tokens: 1024,
+  const { text, model } = await llm.complete({
+    tier: "cheap",
+    maxTokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content }],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new EventDiffError("the model did not return a usable response");
-  }
-
-  const raw = extractJsonText(textBlock.text);
+  const raw = extractJsonText(text);
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -147,7 +140,7 @@ export async function explainEventDiff(
   return {
     summary: String(p.summary ?? ""),
     changes,
-    modelUsed: response.model,
+    modelUsed: model,
   };
 }
 

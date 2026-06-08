@@ -29,12 +29,12 @@ describe("POST /api/v1/events/search", () => {
     expect(res.status).toBe(401);
   });
 
-  it("400s when the user has no Anthropic key", async () => {
+  it("400s when the user has no AI provider key", async () => {
     const { raw } = await userWithToken();
     const res = await POST(req({ q: "failed events" }, raw), noParams);
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.message).toMatch(/Anthropic API key/i);
+    expect(body.error.message).toMatch(/No AI provider configured/i);
   });
 
   it("400s on a missing q", async () => {

@@ -56,8 +56,8 @@ async function makeAccount() {
       prefix: "ody_test",
     },
   });
-  await prisma.userApiKey.create({
-    data: { userId: user.id, anthropicKeyEnc: "KEY-ciphertext" },
+  await prisma.providerKey.create({
+    data: { userId: user.id, provider: "anthropic", keyEnc: "KEY-ciphertext" },
   });
   return { user, source, destination, route, event, delivery, token };
 }
@@ -100,7 +100,7 @@ describe("deleteUserAccount", () => {
     expect(await prisma.event.findUnique({ where: { id: a.event.id } })).toBeNull();
     expect(await prisma.delivery.findUnique({ where: { id: a.delivery.id } })).toBeNull();
     expect(await prisma.apiToken.findUnique({ where: { id: a.token.id } })).toBeNull();
-    expect(await prisma.userApiKey.findUnique({ where: { userId: a.user.id } })).toBeNull();
+    expect(await prisma.providerKey.findFirst({ where: { userId: a.user.id } })).toBeNull();
 
     // Other tenant untouched.
     expect(await prisma.user.findUnique({ where: { id: b.user.id } })).not.toBeNull();

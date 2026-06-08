@@ -15,7 +15,7 @@ import { sendMail } from "../lib/mailer";
 async function main() {
   const dryRun = process.env.DIGEST_DRY_RUN === "1";
   const users = await prisma.user.findMany({
-    where: { apiKey: { isNot: null } },
+    where: { activeAiProvider: { not: null } },
     select: { id: true, email: true, name: true },
   });
   console.log(

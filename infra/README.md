@@ -22,7 +22,7 @@ The operational ground truth for the project. Updated whenever infra changes. Fo
 
 ## What this project is (one-paragraph version)
 
-External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own Anthropic API keys for AI-assisted filter compilation and failure diagnosis (encrypted at rest). A public REST API is live at `/api/v1` (authenticated by API tokens minted at Settings → API Tokens); the OpenAPI spec is served at `/openapi.json`. A public, signed-out marketing & docs site lives under the `(marketing)` route group: `/docs` (14 pages — quickstart, signature verification, outbound HMAC, retries & backoff, rate limits, idempotency, CLI, REST API, an OpenAPI-rendered API reference, MCP, AI filters/transforms, NL event search, AI event diffs, plus the index), `/pricing`, `/use-cases`, `/changelog`, and competitor comparison pages at `/vs/hookdeck` and `/vs/svix`. The `/docs/api-reference` page is rendered statically from `public/openapi.json` via `src/lib/openapi/`.
+External providers POST webhooks to `https://odyhook.dev/api/ingest/<slug>`. The Next.js app verifies the HMAC signature (Stripe / GitHub / generic-sha256), rate-limits via a Redis token bucket, persists an `Event` + one `Delivery` row per enabled route in a single Postgres transaction, then enqueues BullMQ jobs. A separate **worker** process pulls those jobs from Redis, applies route filters and optional QuickJS transformations, and `fetch()`s to each destination with retries (exponential backoff: 10s → 30s → 2m → 10m → 1h → 6h). Caddy fronts everything for TLS. Magic-link auth via Resend SMTP; GitHub OAuth as alternative. Users bring their own LLM provider key (Anthropic, OpenAI, Google, or OpenRouter) for AI-assisted filter compilation, failure diagnosis, NL search, and other AI features (encrypted at rest). A public REST API is live at `/api/v1` (authenticated by API tokens minted at Settings → API Tokens); the OpenAPI spec is served at `/openapi.json`. A public, signed-out marketing & docs site lives under the `(marketing)` route group: `/docs` (14 pages — quickstart, signature verification, outbound HMAC, retries & backoff, rate limits, idempotency, CLI, REST API, an OpenAPI-rendered API reference, MCP, AI filters/transforms, NL event search, AI event diffs, plus the index), `/pricing`, `/use-cases`, `/changelog`, and competitor comparison pages at `/vs/hookdeck` and `/vs/svix`. The `/docs/api-reference` page is rendered statically from `public/openapi.json` via `src/lib/openapi/`.
 
 Five running containers in production. Three external services (Resend, Cloudflare R2, Sentry). One cron file. Everything deployed via GitHub Actions on push to `main`.
 
@@ -36,12 +36,12 @@ Notable endpoints beyond the ingest path:
 
 - **`POST /api/v1/fixtures`** generates a realistic test payload from a plain-English
   description for the `ody trigger --generate` command. It runs server-side using the
-  authenticated user's BYOK Anthropic key (`anthropicFor`), grounded on up to 5 recent
+  authenticated user's BYOK LLM provider key, grounded on up to 5 recent
   events for the source. It generates only — the CLI delivers the result through the normal
   `/api/ingest/<slug>` path.
 
 - **`POST /api/v1/events/search`** runs a natural-language event search. It compiles the
-  English (BYOK Anthropic key) into a structured query, then executes it: source/time/
+  English (BYOK LLM provider key) into a structured query, then executes it: source/time/
   delivery-status become a Postgres `WHERE`, while payload-content predicates are evaluated
   in-memory against `Event.bodyRaw` (stored as text, not JSONB) up to a scan cap, with
   resumable cursor pagination. API-token auth; returns the compiled query + matching events.
@@ -71,7 +71,7 @@ Notable endpoints beyond the ingest path:
 | HMAC | Node `crypto` (built-in) | n/a |
 | Encryption at rest | AES-256-GCM (Node `crypto`) | n/a |
 | Transformation sandbox | QuickJS via `quickjs-emscripten` (WASM) | `0.32.x` |
-| AI | Anthropic Claude (BYOK) | `@anthropic-ai/sdk` `0.87.x` |
+| AI | Multi-provider BYOK (Anthropic / OpenAI / Google / OpenRouter) | `@anthropic-ai/sdk` `0.87.x`, `openai` `6.x`, `@google/genai` `2.x` |
 | TLS / reverse proxy | Caddy 2 | `2-alpine` (Docker) |
 | Container runtime | Docker | host-installed via `get.docker.com` |
 | Orchestration | Docker Compose v2 | `docker compose` (no hyphen) |
@@ -161,7 +161,7 @@ Five containers, one Docker bridge network (`hooksmith_default`), four named vol
 | **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/odyhook` (public) | [github.com](https://github.com) |
 | **GitHub OAuth App** | "Continue with GitHub" sign-in path | Callback: `https://odyhook.dev/api/auth/callback/github`. Client ID + secret in server's `.env`. | [github.com/settings/developers](https://github.com/settings/developers) |
 | **Hetzner Cloud** | VPS host | Server `hooksmith` in Helsinki | [console.hetzner.cloud](https://console.hetzner.cloud) |
-| **Anthropic API** | User-provided AI keys (BYOK model) | No central key — each user supplies their own in Settings → API Keys. Encrypted at rest with `ENCRYPTION_KEY`. | n/a — per-user |
+| **LLM provider API** (Anthropic, OpenAI, Google, or OpenRouter) | User-provided AI keys (BYOK model) | No central key — each user supplies their own for the provider they choose in Settings → API Keys. One active at a time; encrypted at rest with `ENCRYPTION_KEY`. | n/a — per-user |
 
 ---
 
@@ -281,7 +281,7 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | `REDIS_URL` | App → Redis (`redis://redis:6379`) | runtime | none |
 | `AUTH_SECRET` | NextAuth JWT signing | runtime | Rotating logs out everyone, not catastrophic |
 | `AUTH_URL` | OAuth/magic-link callback base (`https://odyhook.dev`) | runtime | Must match the public URL |
-| `ENCRYPTION_KEY` | AES-256-GCM key for at-rest column encryption (signing secrets, destination headers, user Anthropic keys) | runtime | ⚠️ **Catastrophic.** Rotating invalidates every encrypted DB column. Requires a rewrap migration. |
+| `ENCRYPTION_KEY` | AES-256-GCM key for at-rest column encryption (signing secrets, destination headers, user LLM provider keys) | runtime | ⚠️ **Catastrophic.** Rotating invalidates every encrypted DB column. Requires a rewrap migration. |
 | `EMAIL_SERVER_HOST` `_PORT` `_USER` `_PASSWORD` | Resend SMTP | runtime | Get new API key from Resend dashboard |
 | `EMAIL_FROM` | Sender (`Odyhook <no-reply@odyhook.dev>`) | runtime | Domain must stay verified in Resend |
 | `NEXT_PUBLIC_APP_URL` | Public base URL inlined in client JS | **build-time** | Wrong value → ingest URLs in dashboard point at the wrong host; requires `up -d --build` |
@@ -307,7 +307,12 @@ All in `/opt/hooksmith/.env` on the server (mode 600, gitignored). Loaded by Doc
 | **Caddy / TLS status** | `docker compose logs caddy` (cert renewals appear here) |
 | **R2 backup inventory** | `rclone ls r2:odyhook-backups | sort -r | head` |
 
-**Known gap:** there's no alerting on cron exit codes. Sentry catches exceptions in running code but doesn't fire if the nightly backup script silently fails three nights in a row. Mitigation idea (not implemented): hit a [healthchecks.io](https://healthchecks.io) URL from the backup script on success — they ping you when no pings arrive on schedule.
+**Known gap:** there's no alerting on cron exit codes. Sentry catches exceptions in running code but doesn't fire if the nightly backup script silently fails three nights in a row. Two ways to close it, depending on the failure you care about:
+
+- **Push on failure** — have the script POST to an incoming webhook (Slack, Discord, or any HTTP endpoint) when a step fails. Simplest, and you probably already have a Slack workspace. Caveat: a script-fired alert can't fire if the cron job *never runs at all* (cron broken, container down).
+- **Dead-man's-switch** — ping a heartbeat URL (e.g. [healthchecks.io](https://healthchecks.io)) on *success*; it alerts you when an expected ping doesn't arrive. This is the one that catches the "the script never ran" case the push approach misses.
+
+A Slack incoming webhook covers the common "the backup failed" case in a few lines; add a heartbeat too if you want the "it never ran" case covered as well.
 
 ---
 
@@ -384,7 +389,7 @@ Sentry.flush(5000).then(() => process.exit(0));
 | Cloudflare R2 (well under 10 GB / 1M writes / 10M reads free tier) | €0 |
 | Sentry (free tier — 5k events/mo) | €0 |
 | GitHub Actions (public repo — unlimited minutes) | €0 |
-| Anthropic API (BYOK — each user pays for their own usage) | €0 to Odyhook |
+| LLM provider API (BYOK — each user pays for their own usage; Anthropic, OpenAI, Google, or OpenRouter) | €0 to Odyhook |
 | **Total ongoing** | **~€6/month** |
 
 ---
@@ -400,7 +405,7 @@ These are non-obvious choices worth knowing about before "fixing" them:
 - **GitHub repo was renamed `hooksmith` → `odyhook`** (2026-05-24). Canonical URL is now `github.com/NikosGkikas13/odyhook`. GitHub auto-redirects the old `.../hooksmith` URL for clone/push/PR/secrets, so the deploy workflow and any local remote still pointing at the old name keep working — update them opportunistically. The local repo dir, `/opt/hooksmith`, the Compose project name, and the Postgres DB name still say "hooksmith" (cosmetic; renaming those would need a `pg_dump` migration).
 - **Sign-in page lives at `/signin`**, has both GitHub and email options. Homepage links to `/signin` with a single button — duplicate "Continue with GitHub" was removed.
 - **`onboarding@resend.dev`** was used as the From address until `odyhook.dev` was verified in Resend. Now using `no-reply@odyhook.dev`. The `no-reply@` mailbox doesn't actually exist — Resend only handles outbound; nobody can reply to those emails.
-- **Anthropic is BYOK.** There's no central Anthropic key in `.env`. Each user pastes their own at Settings → API Keys, encrypted with `ENCRYPTION_KEY`.
+- **AI is BYOK and multi-provider.** There's no central AI key in `.env`. Each user brings their own key for the provider they choose — Anthropic, OpenAI, Google, or OpenRouter — at Settings → API Keys. They can store keys for several providers and switch the active one; one key is active at a time. All keys are encrypted at rest with `ENCRYPTION_KEY`.
 
 ---
 

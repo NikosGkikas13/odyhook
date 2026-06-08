@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { COMPARISONS, getComparison } from "./comparisons";
 
 describe("comparison data", () => {
-  it("has hookdeck and svix", () => {
-    expect(COMPARISONS.map((c) => c.slug).sort()).toEqual(["hookdeck", "svix"]);
+  it("has hookdeck", () => {
+    expect(COMPARISONS.map((c) => c.slug).sort()).toEqual(["hookdeck"]);
   });
 
   it("each comparison is fully populated", () => {
@@ -30,7 +30,7 @@ describe("comparison data", () => {
   });
 
   it("getComparison returns the matching record", () => {
-    expect(getComparison("svix")?.competitor).toBe("Svix");
+    expect(getComparison("hookdeck")?.competitor).toBe("Hookdeck");
     expect(getComparison("nope")).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { anthropicFor, MODEL_DEFAULT } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import {
   validateFilterAst,
   evaluateFilter,
@@ -53,7 +53,7 @@ export async function compileRule(
   prompt: string,
   sampleEvents: unknown[],
 ): Promise<CompiledRule> {
-  const anthropic = await anthropicFor(userId);
+  const llm = await llmFor(userId);
 
   const userMessage = [
     `Rule: ${prompt}`,
@@ -66,18 +66,13 @@ export async function compileRule(
     `Compile this rule to a filter AST. Return ONLY the JSON.`,
   ].join("\n");
 
-  const response = await anthropic.messages.create({
-    model: MODEL_DEFAULT,
-    max_tokens: 1024,
+  const { text } = await llm.complete({
+    tier: "standard",
+    maxTokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude returned no text content");
-  }
-  const raw = extractJsonText(textBlock.text);
+  const raw = extractJsonText(text);
 
   let parsed: unknown;
   try {

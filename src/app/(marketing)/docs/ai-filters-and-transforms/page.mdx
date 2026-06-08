@@ -9,7 +9,7 @@ Odyhook turns plain-English descriptions into the routing filters and payload tr
 
 ## Bring your own key
 
-These features are BYOK: paste your own Anthropic API key at **Settings → API Keys**. The key is encrypted at rest and used only for your own compilations — there is no central key.
+These features are BYOK: bring your own LLM provider key — Anthropic, OpenAI, Google, or OpenRouter — at **Settings → API Keys**. The key is encrypted at rest and used only for your own compilations; there is no central key. You can store keys for several providers and switch the active one anytime.
 
 ## Filters
 
@@ -28,5 +28,5 @@ A transform reshapes the payload before delivery. Describe the reshape in Englis
 The generated code runs in a QuickJS WebAssembly sandbox — isolated from the host, with no network or filesystem access — and its output is what gets delivered to the destination.
 
 <Callout type="note">
-AI filters and transforms require your own Anthropic key (Settings → API Keys). There is no central key; without one, these features are unavailable.
+AI filters and transforms require your own LLM provider key (Settings → API Keys). There is no central key; without one, these features are unavailable.
 </Callout>

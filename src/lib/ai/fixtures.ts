@@ -1,7 +1,5 @@
-import type Anthropic from "@anthropic-ai/sdk";
-
+import type { LlmClient } from "@/lib/llm";
 import { extractJsonText } from "./json";
-import { MODEL_DEFAULT } from "./models";
 
 /** Thrown when the model's output can't be used as a fixture (a user-facing,
  *  not infrastructure, failure). The API maps this to 400; anything else is a 500. */
@@ -31,7 +29,7 @@ export type FixtureResult = {
 };
 
 export type GenerateFixtureOpts = {
-  anthropic: Anthropic;
+  llm: LlmClient;
   prompt: string;
   sampleBodies: string[];
   verifyStyle: string | null;
@@ -43,7 +41,7 @@ export type GenerateFixtureOpts = {
  * payload as a JSON string. Throws if the model does not return valid JSON.
  */
 export async function generateFixture(opts: GenerateFixtureOpts): Promise<FixtureResult> {
-  const { anthropic, prompt, sampleBodies, verifyStyle } = opts;
+  const { llm, prompt, sampleBodies, verifyStyle } = opts;
   const samples = sampleBodies.slice(0, 5);
 
   const parts = [`Describe the event to generate: ${prompt}`];
@@ -66,19 +64,14 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
   }
   parts.push("Output ONLY the JSON object for the new payload.");
 
-  const response = await anthropic.messages.create({
-    model: MODEL_DEFAULT,
-    max_tokens: 2048,
+  const { text, model } = await llm.complete({
+    tier: "standard",
+    maxTokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: parts.join("\n") }],
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new FixtureGenerationError("the model did not return valid JSON (no text content)");
-  }
-
-  const raw = extractJsonText(textBlock.text);
+  const raw = extractJsonText(text);
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -88,7 +81,7 @@ export async function generateFixture(opts: GenerateFixtureOpts): Promise<Fixtur
 
   return {
     body: JSON.stringify(parsed),
-    model: response.model,
+    model,
     groundedOn: samples.length,
   };
 }

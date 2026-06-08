@@ -28,8 +28,8 @@ describe("loadSearchContext", () => {
 });
 
 describe("compileSearchForUser", () => {
-  it("throws when the user has no Anthropic key", async () => {
+  it("throws when the user has no AI provider key", async () => {
     const user = await prisma.user.create({ data: { email: `${uniq("nokey")}@test.local` } });
-    await expect(compileSearchForUser(user.id, "anything")).rejects.toThrow(/Anthropic API key/i);
+    await expect(compileSearchForUser(user.id, "anything")).rejects.toThrow(/No AI provider configured/i);
   });
 });
