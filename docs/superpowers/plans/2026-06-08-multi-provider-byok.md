@@ -1216,16 +1216,47 @@ Read lines around 40–50. The current line 46 tests `/No Anthropic API key conf
     if (/No AI provider configured/i.test(err.message)) return toolError(err.message);
 ```
 
-- [ ] **Step 7: Full typecheck — should be clean now**
+- [ ] **Step 7: Additional `prisma.userApiKey` sites discovered during Task 7** (plan gap — the original planning grep was case-sensitive and missed these `prisma.userApiKey` / `User.apiKey`-relation usages).
+
+The 4 dashboard pages each compute a UI-gating boolean:
+```ts
+const hasApiKey = !!(await prisma.userApiKey.findUnique({ where: { userId: <X> }, select: { ... } }));
+```
+In each, replace the `prisma.userApiKey.findUnique({...})` call with the new model (keep the same `userId` value `<X>` and the surrounding `!!(...)`):
+```ts
+const hasApiKey = !!(await prisma.providerKey.findFirst({ where: { userId: <X> }, select: { provider: true } }));
+```
+Files:
+- `src/app/(dashboard)/events/[id]/page.tsx` (line ~65)
+- `src/app/(dashboard)/events/compare/page.tsx` (line ~41)
+- `src/app/(dashboard)/routes/[id]/filter/page.tsx` (line ~30)
+- `src/app/(dashboard)/routes/[id]/transform/page.tsx` (line ~31)
+
+The `hasApiKey: boolean` props on `filter-editor.tsx`, `diagnose-button.tsx`, `transform-editor.tsx`, `explain-diff-button.tsx` are unchanged — they still receive the boolean.
+
+`src/scripts/digest.ts` (line ~18) — the cron queries users who have AI configured. Replace:
+```ts
+    where: { apiKey: { isNot: null } },
+```
+with (a user is "configured" when they have an active provider, matching `llmFor`):
+```ts
+    where: { activeAiProvider: { not: null } },
+```
+
+`src/lib/services/account.test.ts` — update the two `prisma.userApiKey` references:
+- line ~59 (create): `prisma.userApiKey.create({ data: { userId: user.id, anthropicKeyEnc: "KEY-ciphertext" } })` → `prisma.providerKey.create({ data: { userId: user.id, provider: "anthropic", keyEnc: "KEY-ciphertext" } })`
+- line ~103 (assert deleted): `prisma.userApiKey.findUnique({ where: { userId: a.user.id } })` → `prisma.providerKey.findFirst({ where: { userId: a.user.id } })`
+
+- [ ] **Step 8: Full typecheck — should be clean now**
 
 Run: `npx tsc --noEmit`
-Expected: exit 0 (all `anthropicFor`/`getUserApiKey`/`UserApiKey` references gone except the Settings page, fixed next).
-> If the Settings page (`settings/api-keys/page.tsx`) still errors on `prisma.userApiKey`, that's expected — Task 12 rewrites it.
+Expected: exit 0 (all `anthropicFor`/`getUserApiKey`/`UserApiKey`/`userApiKey` references gone except the Settings page + `actions/api-keys.ts`, fixed in Task 12).
+> If `settings/api-keys/page.tsx` or `lib/actions/api-keys.ts` still error on `prisma.userApiKey`, that's expected — Task 12 rewrites them.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/app/api/v1/fixtures/route.ts src/lib/services/search.ts src/lib/actions/event-diff.ts src/app/api/v1/events/search/route.ts src/lib/actions/search.ts src/lib/mcp/server.ts
+git add src/app/api/v1/fixtures/route.ts src/lib/services/search.ts src/lib/actions/event-diff.ts src/app/api/v1/events/search/route.ts src/lib/actions/search.ts src/lib/mcp/server.ts "src/app/(dashboard)/events/[id]/page.tsx" "src/app/(dashboard)/events/compare/page.tsx" "src/app/(dashboard)/routes/[id]/filter/page.tsx" "src/app/(dashboard)/routes/[id]/transform/page.tsx" src/scripts/digest.ts src/lib/services/account.test.ts
 git commit -m "refactor: call sites + error handling use llmFor/NoLlmKeyError"
 ```
 
