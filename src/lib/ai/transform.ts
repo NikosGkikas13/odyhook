@@ -1,4 +1,4 @@
-import { anthropicFor, MODEL_DEFAULT } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import { runTransformation } from "@/lib/sandbox/quickjs";
 
 const SYSTEM_PROMPT = `You are a code generator for Odyhook, a webhook management platform.
@@ -38,7 +38,7 @@ export async function generateTransformation(
   prompt: string,
   sampleEvent: unknown,
 ): Promise<GeneratedTransform> {
-  const anthropic = await anthropicFor(userId);
+  const llm = await llmFor(userId);
 
   const userMessage = [
     `Target shape (plain English): ${prompt}`,
@@ -51,18 +51,13 @@ export async function generateTransformation(
     `Return only the arrow function, nothing else.`,
   ].join("\n");
 
-  const response = await anthropic.messages.create({
-    model: MODEL_DEFAULT,
-    max_tokens: 1024,
+  const { text } = await llm.complete({
+    tier: "standard",
+    maxTokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude returned no text content");
-  }
-  let codeJs = textBlock.text.trim();
+  let codeJs = text.trim();
 
   // Defensive: strip markdown fences if Claude added them anyway.
   if (codeJs.startsWith("```")) {

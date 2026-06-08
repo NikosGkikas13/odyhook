@@ -1,4 +1,4 @@
-import { anthropicFor, MODEL_CHEAP } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import { prisma } from "@/lib/prisma";
 
 // Weekly AI digest. Aggregates per-source stats for the last 7 days and asks
@@ -111,11 +111,11 @@ export async function renderDigestEmail(
   stats: DigestSourceStats[],
 ): Promise<string | null> {
   if (stats.length === 0) return null;
-  const anthropic = await anthropicFor(userId);
+  const llm = await llmFor(userId);
 
-  const response = await anthropic.messages.create({
-    model: MODEL_CHEAP,
-    max_tokens: 700,
+  const { text } = await llm.complete({
+    tier: "cheap",
+    maxTokens: 700,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -131,7 +131,5 @@ export async function renderDigestEmail(
       },
     ],
   });
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") return null;
-  return textBlock.text.trim();
+  return text.trim();
 }

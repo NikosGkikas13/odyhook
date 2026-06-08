@@ -1,4 +1,4 @@
-import { anthropicFor, MODEL_CHEAP } from "@/lib/anthropic";
+import { llmFor } from "@/lib/llm";
 import { prisma } from "@/lib/prisma";
 import { fingerprintShape } from "@/lib/ai/diagnose";
 
@@ -33,10 +33,10 @@ async function claudeDiffFingerprints(
   previous: unknown,
   current: unknown,
 ): Promise<DriftReport> {
-  const anthropic = await anthropicFor(userId);
-  const response = await anthropic.messages.create({
-    model: MODEL_CHEAP,
-    max_tokens: 512,
+  const llm = await llmFor(userId);
+  const { text } = await llm.complete({
+    tier: "cheap",
+    maxTokens: 512,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -55,11 +55,7 @@ async function claudeDiffFingerprints(
       },
     ],
   });
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude returned no text content");
-  }
-  let raw = textBlock.text.trim();
+  let raw = text.trim();
   if (raw.startsWith("```")) {
     raw = raw
       .replace(/^```(?:json)?\n/, "")
