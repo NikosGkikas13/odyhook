@@ -62,7 +62,7 @@ export default function SecurityPage() {
       <h2>Security posture</h2>
       <ul>
         <li>
-          Secrets (signing secrets, destination headers, BYOK Anthropic keys) are
+          Secrets (signing secrets, destination headers, BYOK LLM provider keys) are
           encrypted at rest with AES-256-GCM.
         </li>
         <li>

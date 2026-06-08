@@ -7,6 +7,10 @@ export const metadata = {
 
 Newest first. Each entry maps to a merged pull request.
 
+## Multi-provider BYOK — 2026-06-08
+
+AI features (filters, transforms, failure diagnosis, NL event search, event diffs, fixtures, digest, drift) now run on your choice of LLM provider: Anthropic, OpenAI, Google Gemini, or any model via OpenRouter. Configure your key(s) under **Settings → API Keys** — you can store keys for several providers and switch the active one at any time. All keys remain encrypted at rest; there is no central key. (PR #18)
+
 ## Natural-language event search
 
 Search your stored events in plain English. Available in the dashboard, as `POST /api/v1/events/search`, and as the `search_events` MCP tool — all three share one compile-then-run engine that turns English into a structured query and executes it. (PR #10)

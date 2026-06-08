@@ -75,7 +75,7 @@ export default function PrivacyPage() {
             <td>Secrets (encrypted)</td>
             <td>
               Source signing secrets, destination headers, and your
-              bring-your-own Anthropic API key.
+              bring-your-own LLM provider key (Anthropic, OpenAI, Google, or OpenRouter).
             </td>
             <td>
               To verify inbound signatures, authenticate to your destinations,
