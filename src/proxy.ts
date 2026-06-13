@@ -15,6 +15,8 @@ export default auth;
 // added here.
 export const config = {
   matcher: [
+    "/overview/:path*",
+    "/overview",
     "/sources/:path*",
     "/events/:path*",
     "/destinations/:path*",
