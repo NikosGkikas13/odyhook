@@ -9,6 +9,7 @@ import {
   updateSource as updateSourceSvc,
   MAX_RETENTION_DAYS,
 } from "@/lib/services/sources";
+import { toFormError, type FormState } from "./form-error";
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -16,17 +17,31 @@ async function requireUserId(): Promise<string> {
   return session.user.id;
 }
 
-export async function createSource(formData: FormData) {
+// Driven by `useActionState`, so expected errors (a missing signing secret for
+// a verified style, account quota reached) are returned for the form to show
+// rather than thrown — an uncaught throw here surfaces as the runtime error
+// overlay instead of inline guidance. Unexpected errors still bubble.
+export async function createSource(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const userId = await requireUserId();
-  await createSourceSvc(userId, {
-    name: String(formData.get("name") ?? ""),
-    verifyStyle: String(formData.get("verifyStyle") ?? "none") as
-      | "none" | "stripe" | "github" | "generic-sha256",
-    signingSecret: formData.get("signingSecret")
-      ? String(formData.get("signingSecret"))
-      : undefined,
-  });
+  try {
+    await createSourceSvc(userId, {
+      name: String(formData.get("name") ?? ""),
+      verifyStyle: String(formData.get("verifyStyle") ?? "none") as
+        | "none" | "stripe" | "github" | "generic-sha256",
+      signingSecret: formData.get("signingSecret")
+        ? String(formData.get("signingSecret"))
+        : undefined,
+    });
+  } catch (err) {
+    const message = toFormError(err);
+    if (message === null) throw err; // genuine bug → nearest error.tsx
+    return { error: message };
+  }
   revalidatePath("/sources");
+  return { ok: true };
 }
 
 export async function deleteSource(formData: FormData) {

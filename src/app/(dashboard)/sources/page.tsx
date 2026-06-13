@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { createSource, deleteSource } from "@/lib/actions/sources";
+import { deleteSource } from "@/lib/actions/sources";
+import { NewSourceForm } from "./new-source-form";
 
 export const dynamic = "force-dynamic";
 
@@ -31,51 +32,7 @@ export default async function SourcesPage() {
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <h2 className="text-sm font-medium">New source</h2>
-        <form action={createSource} className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Name</span>
-            <input
-              name="name"
-              required
-              placeholder="Stripe (prod)"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Signature verification
-            </span>
-            <select
-              name="verifyStyle"
-              defaultValue="none"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="none">None</option>
-              <option value="stripe">Stripe</option>
-              <option value="github">GitHub</option>
-              <option value="generic-sha256">Generic SHA-256</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="text-zinc-600 dark:text-zinc-400">
-              Signing secret (only needed if verification is enabled)
-            </span>
-            <input
-              name="signingSecret"
-              type="password"
-              placeholder="whsec_..."
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </label>
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="btn-primary-ody inline-flex h-9 items-center rounded-md px-4 text-sm font-medium"
-            >
-              Create source
-            </button>
-          </div>
-        </form>
+        <NewSourceForm />
       </section>
 
       <section>
