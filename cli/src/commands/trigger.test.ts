@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTriggerRequest, parseHeaderFlags, resolveTriggerMode, buildGenerateRequest, generateAndSend } from "./trigger";
+import { buildTriggerRequest, parseHeaderFlags, resolveTriggerMode, buildGenerateRequest, generateAndSend, sendTrigger, type TriggerRequest } from "./trigger";
 import type { Config } from "../config";
 
 describe("parseHeaderFlags", () => {
@@ -95,5 +95,40 @@ describe("generateAndSend", () => {
     await generateAndSend(cfg, "gh-prod", "a test event", { dryRun: true, headers: {} }, fakeFetch);
 
     expect(calls).toEqual(["https://odyhook.dev/api/v1/fixtures"]);
+  });
+});
+
+describe("sendTrigger", () => {
+  const req: TriggerRequest = {
+    url: "https://odyhook.dev/api/ingest/gh-prod",
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: '{"hello":"world"}',
+  };
+
+  it("POSTs the request when not a dry run", async () => {
+    const calls: string[] = [];
+    const fakeFetch = (async (url: string) => {
+      calls.push(url);
+      return new Response("accepted", { status: 202 });
+    }) as unknown as typeof fetch;
+
+    await sendTrigger(req, false, fakeFetch);
+
+    expect(calls).toEqual(["https://odyhook.dev/api/ingest/gh-prod"]);
+  });
+
+  // Regression: --dry-run used to be honored only for --generate, so
+  // `ody trigger --data … --dry-run` (and --replay) still fired a real request.
+  it("does NOT send when dryRun is true", async () => {
+    const calls: string[] = [];
+    const fakeFetch = (async (url: string) => {
+      calls.push(url);
+      return new Response("accepted", { status: 202 });
+    }) as unknown as typeof fetch;
+
+    await sendTrigger(req, true, fakeFetch);
+
+    expect(calls).toEqual([]);
   });
 });

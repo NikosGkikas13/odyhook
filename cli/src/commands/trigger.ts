@@ -129,6 +129,27 @@ export async function generateAndSend(
   if (!sent.ok) process.exitCode = 1;
 }
 
+/**
+ * Deliver a built request — or, when dryRun, print what would be sent and
+ * return without making the call. Applies to every input mode, not just
+ * --generate. Exported for testing with an injected fetch.
+ */
+export async function sendTrigger(
+  req: TriggerRequest,
+  dryRun: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  if (dryRun) {
+    console.log(`Dry run — not sending. Would ${req.method} ${req.url}:`);
+    console.log(req.body);
+    return;
+  }
+  const res = await fetchImpl(req.url, { method: req.method, headers: req.headers, body: req.body });
+  const text = await res.text();
+  console.log(`HTTP ${res.status}  ${text}`);
+  if (!res.ok) process.exitCode = 1;
+}
+
 export async function trigger(argv: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -161,9 +182,11 @@ export async function trigger(argv: string[]): Promise<void> {
     return;
   }
 
+  const dryRun = Boolean(values["dry-run"]);
+
   if (mode.mode === "generate") {
     await generateAndSend(cfg, slug, values.generate!, {
-      dryRun: Boolean(values["dry-run"]),
+      dryRun,
       headers: parseHeaderFlags(values.header ?? []),
     });
     return;
@@ -191,13 +214,12 @@ export async function trigger(argv: string[]): Promise<void> {
       headers: filterHeaders(evt.headersJson),
       body: evt.bodyRaw,
     };
-    console.log(`Replaying ${values.replay} into "${slug}" (a new event will be created; identical bodies may be de-duped)`);
+    if (!dryRun) {
+      console.log(`Replaying ${values.replay} into "${slug}" (a new event will be created; identical bodies may be de-duped)`);
+    }
   } else {
     req = buildTriggerRequest(cfg, slug, readData(values.data!), parseHeaderFlags(values.header ?? []));
   }
 
-  const res = await fetch(req.url, { method: req.method, headers: req.headers, body: req.body });
-  const text = await res.text();
-  console.log(`HTTP ${res.status}  ${text}`);
-  if (!res.ok) process.exitCode = 1;
+  await sendTrigger(req, dryRun);
 }
