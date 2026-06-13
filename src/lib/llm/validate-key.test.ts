@@ -1,13 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
-// validateProviderKey is pure; mock out the server-only imports so the
-// module loads cleanly in the Vitest (Node) environment.
-vi.mock("@/auth", () => ({ auth: vi.fn() }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
-vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => s }));
-
-import { validateProviderKey } from "./api-keys";
+import { validateProviderKey } from "./validate-key";
 
 describe("validateProviderKey", () => {
   it("accepts well-formed keys per provider", () => {
