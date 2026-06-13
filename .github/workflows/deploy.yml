@@ -7,11 +7,14 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  # Gate: typecheck + the full Vitest suite must pass before we deploy.
-  # Runs on every push and PR. The suite is integration-style (hits Postgres
-  # via Prisma and Redis via BullMQ), so we stand both up as service containers.
+  # Gate: typecheck + the full Vitest suite + a real `next build` must pass
+  # before we deploy. Runs on every push and PR. The suite is integration-style
+  # (hits Postgres via Prisma and Redis via BullMQ), so we stand both up as
+  # service containers. `next build` is in the gate because tsc/vitest do NOT
+  # catch build-only errors (e.g. a sync export from a "use server" module),
+  # which is exactly what slipped through and broke a deploy on 2026-06-08.
   test:
-    name: tsc + vitest
+    name: tsc + vitest + build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -59,6 +62,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Test
         run: npm run test
+      - name: Build (next build — catches build-only errors tsc/vitest miss)
+        run: npm run build
 
   deploy:
     name: Deploy to production
