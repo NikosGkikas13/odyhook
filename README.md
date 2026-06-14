@@ -113,3 +113,14 @@ Configurable in `src/lib/queue.ts` (`RETRY_DELAYS_MS`).
 Point a destination at `https://httpbin.org/status/500` and send an event —
 the worker logs will show the backoff schedule, and the event detail page
 will show each failed attempt in the delivery timeline..
+
+## License
+
+Odyhook is licensed under the **GNU Affero General Public License v3.0**
+(AGPL-3.0). See [LICENSE](LICENSE) for the full text.
+
+In plain terms: you're free to use, modify, and self-host Odyhook. If you run a
+**modified** version as a network service, you must make your modified source
+available to that service's users under the same license.
+
+© 2026 Nikos Gkikas
