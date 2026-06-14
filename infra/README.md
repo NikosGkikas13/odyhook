@@ -11,7 +11,7 @@ The operational ground truth for the project. Updated whenever infra changes. Fo
 | | |
 |---|---|
 | Production URL | `https://odyhook.dev` (apex), `www` → apex 301 redirect |
-| Server | Hetzner Cloud CX23, Helsinki — `157.180.91.106` (2 vCPU, 4 GB RAM, 40 GB SSD) |
+| Server | Hetzner Cloud CX23, Helsinki — `<your-server-ip>` (2 vCPU, 4 GB RAM, 40 GB SSD) |
 | Hosting cost | €4.95/month |
 | Source repo | `github.com/NikosGkikas13/odyhook` (public) |
 | Compose project name | `hooksmith` (derived from the `/opt/hooksmith` directory basename; kept after the Odyhook rebrand to avoid a `pg_dump` migration of named volumes) |
@@ -156,7 +156,7 @@ Five containers, one Docker bridge network (`hooksmith_default`), four named vol
 |---|---|---|---|
 | **Porkbun** | Domain registrar + DNS for `odyhook.dev` | Account: `ngkdev93@gmail.com` | [porkbun.com](https://porkbun.com) |
 | **Resend** | SMTP for magic-link emails. Domain `odyhook.dev` verified (DKIM/SPF/DMARC). Sends from `no-reply@odyhook.dev`. | API key in server's `EMAIL_SERVER_PASSWORD`. | [resend.com/domains](https://resend.com/domains) |
-| **Cloudflare R2** | Off-site DB backup storage | Account ID `728e0c68f696f31ad2029513f3e9962b`. Bucket `odyhook-backups`, region EEUR, 14-day object lifecycle. | [dash.cloudflare.com](https://dash.cloudflare.com) → R2 |
+| **Cloudflare R2** | Off-site DB backup storage | Account ID `<your-r2-account-id>`. Bucket `odyhook-backups`, region EEUR, 14-day object lifecycle. | [dash.cloudflare.com](https://dash.cloudflare.com) → R2 |
 | **Sentry** | Error tracking for web + worker | Org `odyhook`, region DE, project key in `SENTRY_DSN` | [sentry.io](https://sentry.io) |
 | **GitHub** | Source repo + Actions runner | `github.com/NikosGkikas13/odyhook` (public) | [github.com](https://github.com) |
 | **GitHub OAuth App** | "Continue with GitHub" sign-in path | Callback: `https://odyhook.dev/api/auth/callback/github`. Client ID + secret in server's `.env`. | [github.com/settings/developers](https://github.com/settings/developers) |
@@ -169,8 +169,8 @@ Five containers, one Docker bridge network (`hooksmith_default`), four named vol
 
 | Type | Host | Value | Purpose |
 |---|---|---|---|
-| A | (apex / blank) | `157.180.91.106` | `odyhook.dev` → server |
-| A | `www` | `157.180.91.106` | `www` → server (Caddy redirects to apex) |
+| A | (apex / blank) | `<your-server-ip>` | `odyhook.dev` → server |
+| A | `www` | `<your-server-ip>` | `www` → server (Caddy redirects to apex) |
 | MX | `send` | `feedback-smtp.eu-west-1.amazonses.com` priority `10` | Resend bounce/reply handling |
 | TXT | `send` | `v=spf1 include:amazonses.com ~all` | SPF |
 | TXT | `resend._domainkey` | (long DKIM `p=...` blob; see Resend dashboard) | DKIM signing |
@@ -187,10 +187,15 @@ If any of these are removed at Porkbun, Resend's verification status flips back 
 Push to `main` triggers `.github/workflows/deploy.yml`:
 
 1. GitHub Actions runner stores `DEPLOY_SSH_KEY` (secret) to `~/.ssh/id_ed25519`
-2. Pins server's known_hosts ed25519 fingerprint inline (anti-MITM)
-3. SSHes to `root@157.180.91.106` with that key
+2. Pins the server's `known_hosts` line from the `DEPLOY_KNOWN_HOSTS` secret (anti-MITM)
+3. SSHes to `root@$DEPLOY_HOST` (the `DEPLOY_HOST` secret) with that key
 4. The key's `command=` restriction in `authorized_keys` forces execution of `/usr/local/bin/odyhook-deploy.sh`
 5. That script runs `git pull --ff-only origin main && docker compose -f docker-compose.prod.yml up -d --build`
+
+**Required repo secrets:** `DEPLOY_SSH_KEY` (deploy private key), `DEPLOY_HOST`
+(server IP/hostname), and `DEPLOY_KNOWN_HOSTS` (the server's `known_hosts` line:
+`<server-ip> ssh-ed25519 AAAA…`). The host and host key were moved out of the
+committed workflow into secrets so the repo can be public without exposing them.
 
 **Typical timings:**
 - UI-only change: ~90s (most layers cached, only `npm run build` re-runs)
@@ -210,7 +215,7 @@ Even if `DEPLOY_SSH_KEY` leaks (e.g., from Actions logs), an attacker can only f
 ### Manual deploy (when CI is down)
 
 ```sh
-ssh root@157.180.91.106
+ssh root@<your-server-ip>
 cd /opt/hooksmith
 git pull --ff-only origin main
 docker compose -f docker-compose.prod.yml up -d --build

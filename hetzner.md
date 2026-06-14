@@ -29,7 +29,7 @@ Before:                              After Phase 1:
 
                                      [Hetzner server, in Helsinki]  ← NEW
                                      └── Empty Ubuntu Linux box
-                                         Reachable at 157.180.91.106
+                                         Reachable at <your-server-ip>
                                          We can log into it via SSH
                                          Costs €4.95/mo
 ```
@@ -69,7 +69,7 @@ That's why:
 - The long random `AAAAC3NzaC1lZDI1NTE5...` blob in the middle is what makes it cryptographically secure.
 - The email at the end is just a label so you can tell keys apart later.
 
-### "We got an IP: 157.180.91.106"
+### "We got an IP: <your-server-ip>"
 Every device on the internet has an IP address — a number that uniquely identifies it on the network. Like a street address for houses. This is your server's address on the public internet.
 
 DNS will eventually map a friendly domain name (e.g. `odyhook.yourdomain.com`) to this IP, but the IP is the underlying truth.
@@ -96,7 +96,7 @@ What Odyhook eventually needs:           What we have right now:
     [Caddy]      ← HTTPS proxy               [Empty server]
         │                                      (Ubuntu, nothing else)
         ▼
-   [Web (Next)]  ← Dashboard + ingest        Reachable at 157.180.91.106
+   [Web (Next)]  ← Dashboard + ingest        Reachable at <your-server-ip>
         │
         ▼
    [Postgres]    ← Database                  Costs €4.95/month

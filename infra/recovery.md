@@ -1,6 +1,6 @@
 # Odyhook — Disaster Recovery Procedures
 
-Step-by-step for things going wrong. Skim the headings; deep-dive only what's actually broken. Every command assumes you've SSH'd in to `root@157.180.91.106` and are at `/opt/hooksmith` unless noted otherwise.
+Step-by-step for things going wrong. Skim the headings; deep-dive only what's actually broken. Every command assumes you've SSH'd in to `root@<your-server-ip>` and are at `/opt/hooksmith` unless noted otherwise.
 
 Pair this with [README.md](README.md) for context on what each component does.
 
@@ -63,7 +63,7 @@ Caddy auto-renews 30 days before expiry. If it's not, something's wrong.
 ### 1. Verify DNS still points at the server
 
 ```sh
-dig +short odyhook.dev      # must return 157.180.91.106
+dig +short odyhook.dev      # must return <your-server-ip>
 dig +short www.odyhook.dev  # same
 ```
 
@@ -282,7 +282,7 @@ echo "command=\"/usr/local/bin/odyhook-deploy.sh\",no-port-forwarding,no-X11-for
 # Update GitHub Actions secret
 cat /root/.ssh/odyhook_deploy_new
 # (locally, on your laptop, with gh CLI authed:)
-# ssh root@157.180.91.106 'cat /root/.ssh/odyhook_deploy_new' | gh secret set DEPLOY_SSH_KEY --repo NikosGkikas13/odyhook
+# ssh root@<your-server-ip> 'cat /root/.ssh/odyhook_deploy_new' | gh secret set DEPLOY_SSH_KEY --repo NikosGkikas13/odyhook
 
 # Once verified working, delete the old keypair
 rm /root/.ssh/odyhook_deploy /root/.ssh/odyhook_deploy.pub
@@ -344,7 +344,7 @@ DSNs are essentially public (they're embedded in client bundles for many apps), 
 If you ever migrate to a new domain:
 
 1. Buy + verify new domain (at any registrar)
-2. Add new A records pointing at `157.180.91.106`
+2. Add new A records pointing at `<your-server-ip>`
 3. On the server: update `Caddyfile` (change `odyhook.dev` to new domain in both blocks)
 4. Update `.env`: `AUTH_URL`, `NEXT_PUBLIC_APP_URL`
 5. Update `EMAIL_FROM` if changing the sender domain → re-verify in Resend with new DKIM
