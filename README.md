@@ -6,6 +6,12 @@ destinations with automatic retries, and replay any event with one click.
 Built with Next.js 16, Prisma 7 (postgres driver adapter), NextAuth v5,
 BullMQ/Redis, Tailwind v4.
 
+## Prerequisites
+
+- **Node.js 20+** (22 recommended — matches the Docker image; an `.nvmrc` is included)
+- **Docker + Docker Compose v2** (for local Postgres, Redis, and MailHog)
+- **npm** (ships with Node)
+
 ## First-time setup
 
 ```bash
