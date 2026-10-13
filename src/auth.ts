@@ -15,7 +15,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma as any),
   providers: [
-    GitHub,
+    // GitHub now returns an RFC 9207 `iss` parameter on the OAuth callback.
+    // @auth/core <0.41.3 has no issuer for its GitHub provider and falls back
+    // to "https://authjs.dev", so oauth4webapi rejects every callback with
+    // `unexpected "iss"` (surfaced as the generic "server configuration" page).
+    // Mirrors the upstream fix; drop once @auth/core >=0.41.3 is installed.
+    GitHub({ issuer: "https://github.com/login/oauth" }),
     Nodemailer({
       // When no SMTP credentials are set (e.g. local MailHog) use a plain URL string.
       // A string value is not deep-merged by @auth/core, so the provider default
