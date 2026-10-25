@@ -9,3 +9,13 @@ odyhook.dev {
 www.odyhook.dev {
     redir https://odyhook.dev{uri} permanent
 }
+
+# Nitpilot (github.com/NikosGkikas13/nitpilot) shares this box: its own container, nitpilot-server, joins this
+# project's network from /opt/nitpilot. These two blocks are Nitpilot's; see docs/hosting.md in that repo.
+nitpilot.dev {
+    reverse_proxy nitpilot-server:8787
+}
+
+www.nitpilot.dev {
+    redir https://nitpilot.dev{uri} permanent
+}
